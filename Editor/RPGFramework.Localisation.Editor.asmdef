@@ -1,7 +1,7 @@
 {
     "name": "RPGFramework.Localisation.Editor",
     "rootNamespace": "RPGFramework.Localisation.Editor",
-    "references": [],
+    "references": ["GUID:c755cf6544475924dbc19843a460d559"],
     "includePlatforms": [
         "Editor"
     ],
