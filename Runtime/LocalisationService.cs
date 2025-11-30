@@ -163,7 +163,7 @@ namespace RPGFramework.Localisation
         {
             m_Data                = new Dictionary<string, LocData>();
             m_LocalisationService = this;
-            m_CurrentLanguage     = "en";
+            m_CurrentLanguage     = "en-GB";
             m_SubFolder           = "Localisation";
         }
 
