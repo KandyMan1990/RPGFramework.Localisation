@@ -100,8 +100,10 @@ namespace RPGFramework.Localisation
                 return $"MISSING KEY <{key}>";
             }
 
-            string sheetName = key.Split('/')[0];
-            string keyValue  = key.Split('/')[1];
+            if (!TryParseKey(key, out string sheetName, out string keyValue))
+            {
+                return $"MISSING KEY <{key}>";
+            }
 
             LocData data = GetSheetData(m_Data, sheetName, m_CurrentLanguage);
 
@@ -249,6 +251,29 @@ namespace RPGFramework.Localisation
             string str = Encoding.UTF8.GetString(table, offset + 4, length);
 
             return str;
+        }
+
+        private static bool TryParseKey(string key, out string sheetName, out string keyValue)
+        {
+            sheetName = null;
+            keyValue  = null;
+
+            if (string.IsNullOrEmpty(key))
+            {
+                return false;
+            }
+
+            int slash = key.IndexOf('/');
+
+            if (slash <= 0 || slash == key.Length - 1)
+            {
+                return false;
+            }
+
+            sheetName = key.Substring(0, slash);
+            keyValue  = key.Substring(slash + 1);
+
+            return true;
         }
 
         private class LocData : IDisposable
