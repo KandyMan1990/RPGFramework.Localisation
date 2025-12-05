@@ -29,6 +29,22 @@ namespace RPGFramework.Localisation
 
         string ILocalisationService.CurrentLanguage => m_CurrentLanguage;
 
+        private event Action<string> m_OnLanguageChanged;
+
+        private readonly Dictionary<string, LocData> m_Data;
+        private readonly ILocalisationService        m_LocalisationService;
+
+        private string m_CurrentLanguage;
+        private string m_SubFolder;
+
+        public LocalisationService()
+        {
+            m_Data                = new Dictionary<string, LocData>();
+            m_LocalisationService = this;
+            m_CurrentLanguage     = "en-GB"; //TODO: this should default to system language and fallback to English
+            m_SubFolder           = "Localisation";
+        }
+
         void ILocalisationService.SetCurrentLanguage(string language)
         {
             if (language == m_CurrentLanguage)
@@ -153,22 +169,6 @@ namespace RPGFramework.Localisation
             return languages;
         }
 
-        private event Action<string> m_OnLanguageChanged;
-
-        private readonly Dictionary<string, LocData> m_Data;
-        private readonly ILocalisationService        m_LocalisationService;
-
-        private string m_CurrentLanguage;
-        private string m_SubFolder;
-
-        public LocalisationService()
-        {
-            m_Data                = new Dictionary<string, LocData>();
-            m_LocalisationService = this;
-            m_CurrentLanguage     = "en-GB";
-            m_SubFolder           = "Localisation";
-        }
-
         private static void UnloadAllSheets(Dictionary<string, LocData> data)
         {
             foreach (KeyValuePair<string, LocData> kvp in data)
@@ -274,57 +274,6 @@ namespace RPGFramework.Localisation
             keyValue  = key.Substring(slash + 1);
 
             return true;
-        }
-
-        private class LocData : IDisposable
-        {
-            public ulong[] Hashes      { get; private set; }
-            public int[]   Offsets     { get; private set; }
-            public byte[]  StringTable { get; private set; }
-
-            private LocData(ulong[] hashes, int[] offsets, byte[] stringTable)
-            {
-                Hashes      = hashes;
-                Offsets     = offsets;
-                StringTable = stringTable;
-            }
-
-            public static LocData FromBytes(byte[] bytes)
-            {
-                using (MemoryStream ms = new MemoryStream(bytes))
-                using (BinaryReader br = new BinaryReader(ms))
-                {
-                    byte[] magic = br.ReadBytes(4);
-
-                    if (magic[0] != (byte)'L' || magic[1] != (byte)'O' || magic[2] != (byte)'C' || magic[3] != (byte)'B')
-                    {
-                        throw new InvalidDataException("Invalid locbin magic");
-                    }
-
-                    int     version = br.ReadInt32();
-                    int     count   = br.ReadInt32();
-                    ulong[] hashes  = new ulong[count];
-                    int[]   offsets = new int[count];
-
-                    for (int i = 0; i < count; i++)
-                    {
-                        hashes[i]  = br.ReadUInt64();
-                        offsets[i] = br.ReadInt32();
-                    }
-
-                    int    remaining = (int)(ms.Length - ms.Position);
-                    byte[] table     = br.ReadBytes(remaining);
-
-                    return new LocData(hashes, offsets, table);
-                }
-            }
-
-            public void Dispose()
-            {
-                Hashes      = null;
-                Offsets     = null;
-                StringTable = null;
-            }
         }
     }
 }

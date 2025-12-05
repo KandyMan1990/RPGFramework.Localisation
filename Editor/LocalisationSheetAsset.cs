@@ -1,3 +1,4 @@
+using RPGFramework.Localisation.Editor.LocBinWriter;
 using UnityEditor;
 using UnityEngine;
 
@@ -23,6 +24,9 @@ namespace RPGFramework.Localisation.Editor
         [Tooltip("An override for the default namespace, leave this blank to use the value in master")]
         public string NamespaceOverride = string.Empty;
 
+        [Tooltip("Which version of the file to use")]
+        public int Version = 1;
+
         public void Generate()
         {
             if (Master == null)
@@ -39,7 +43,8 @@ namespace RPGFramework.Localisation.Editor
             }
             else
             {
-                LocBinGenerator.Generate(this);
+                ILocBinWriter locBinWriter = LocBinWriterProvider.GetLocBinWriter(Version);
+                locBinWriter.Generate(this);
             }
         }
     }
