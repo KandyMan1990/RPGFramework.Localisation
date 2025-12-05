@@ -72,7 +72,7 @@ namespace RPGFramework.Localisation
 
                     if (!File.Exists(filePath))
                     {
-                        Debug.LogWarning($"{nameof(ILocalisationService)}::{nameof(GetSheetData)} No locbin for sheet <{sheetName}> lang <{m_LocalisationService.CurrentLanguage}>");
+                        Debug.LogWarning($"{nameof(ILocalisationService)}::{nameof(GetSheetData)} No locbin for sheet [{sheetName}] language [{m_LocalisationService.CurrentLanguage}]");
                         return;
                     }
                 }
@@ -97,19 +97,19 @@ namespace RPGFramework.Localisation
         {
             if (string.IsNullOrWhiteSpace(key))
             {
-                return $"MISSING KEY <{key}>";
+                return $"MISSING KEY [{key}]";
             }
 
             if (!TryParseKey(key, out string sheetName, out string keyValue))
             {
-                return $"MISSING KEY <{key}>";
+                return $"MISSING KEY [{key}]";
             }
 
             LocData data = GetSheetData(m_Data, sheetName, m_CurrentLanguage);
 
             if (data == null)
             {
-                return $"MISSING SHEET <{sheetName}>";
+                return $"MISSING SHEET [{sheetName}]";
             }
 
             ulong hash  = Fnv1a64.Hash(keyValue);
@@ -117,7 +117,7 @@ namespace RPGFramework.Localisation
 
             if (index < 0)
             {
-                return $"MISSING KEY <{key}> IN SHEET <{sheetName}>";
+                return $"MISSING KEY [{key}] IN SHEET [{sheetName}]";
             }
 
             int    offset = data.Offsets[index];
@@ -125,7 +125,7 @@ namespace RPGFramework.Localisation
 
             if (str == null)
             {
-                return $"MISSING VALUE FOR <{key}> IN SHEET <{sheetName}>";
+                return $"MISSING VALUE FOR [{key}] IN SHEET [{sheetName}]";
             }
 
             return str;
