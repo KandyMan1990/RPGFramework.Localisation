@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace RPGFramework.Localisation
@@ -11,8 +12,8 @@ namespace RPGFramework.Localisation
     {
         event Action<string> OnLanguageChanged;
         string               CurrentLanguage { get; }
-        void                 SetCurrentLanguage(string      language);
-        void                 LoadNewLocalisationData(string sheetName);
+        void                 SetCurrentLanguage(string           language);
+        Task                 LoadNewLocalisationDataAsync(string sheetName);
         void                 ClearLocalisationData();
         string               Get(string                         key);
         void                 SetStreamingAssetsSubFolder(string folderName);
@@ -60,13 +61,13 @@ namespace RPGFramework.Localisation
 
             foreach (string sheetName in sheetNames)
             {
-                m_LocalisationService.LoadNewLocalisationData(sheetName);
+                m_LocalisationService.LoadNewLocalisationDataAsync(sheetName);
             }
 
             m_OnLanguageChanged?.Invoke(m_CurrentLanguage);
         }
 
-        void ILocalisationService.LoadNewLocalisationData(string sheetName)
+        async Task ILocalisationService.LoadNewLocalisationDataAsync(string sheetName)
         {
             try
             {
@@ -93,7 +94,7 @@ namespace RPGFramework.Localisation
                     }
                 }
 
-                byte[]  bytes   = File.ReadAllBytes(filePath);
+                byte[]  bytes   = await File.ReadAllBytesAsync(filePath);
                 LocData locData = LocData.FromBytes(bytes);
 
                 m_Data[sheetName] = locData;
