@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace RPGFramework.Localisation
 {
@@ -69,40 +70,11 @@ namespace RPGFramework.Localisation
 
         async Task ILocalisationService.LoadNewLocalisationDataAsync(string sheetName)
         {
-            try
-            {
-                string filePath = Path.Combine(Application.streamingAssetsPath, m_SubFolder, m_LocalisationService.CurrentLanguage, $"{sheetName}.locbin");
+            byte[] bytes = await LoadStreamingAssetAsync(sheetName);
 
-                if (!File.Exists(filePath))
-                {
-                    string neutral = GetNeutralFrom(m_LocalisationService.CurrentLanguage);
+            LocData locData = LocData.FromBytes(bytes);
 
-                    if (!string.Equals(neutral, m_LocalisationService.CurrentLanguage, StringComparison.OrdinalIgnoreCase))
-                    {
-                        string neutralPath = Path.Combine(Application.streamingAssetsPath, m_SubFolder, neutral, $"{sheetName}.locbin");
-
-                        if (File.Exists(neutralPath))
-                        {
-                            filePath = neutralPath;
-                        }
-                    }
-
-                    if (!File.Exists(filePath))
-                    {
-                        Debug.LogWarning($"{nameof(ILocalisationService)}::{nameof(GetSheetData)} No locbin for sheet [{sheetName}] language [{m_LocalisationService.CurrentLanguage}]");
-                        return;
-                    }
-                }
-
-                byte[]  bytes   = await File.ReadAllBytesAsync(filePath);
-                LocData locData = LocData.FromBytes(bytes);
-
-                m_Data[sheetName] = locData;
-            }
-            catch (Exception e)
-            {
-                Debug.LogError($"{nameof(ILocalisationService)}::{nameof(GetSheetData)} Failed to load locbin: {e}");
-            }
+            m_Data[sheetName] = locData;
         }
 
         void ILocalisationService.ClearLocalisationData()
@@ -271,10 +243,74 @@ namespace RPGFramework.Localisation
                 return false;
             }
 
-            sheetName = key.Substring(0, slash);
-            keyValue  = key.Substring(slash + 1);
+            sheetName = key[..slash];
+            keyValue  = key[(slash + 1)..];
 
             return true;
+        }
+
+        private async Task<byte[]> LoadStreamingAssetAsync(string sheetName)
+        {
+            string neutralLanguage = GetNeutralFrom(m_CurrentLanguage);
+
+            string primaryPath = CombinePath(Application.streamingAssetsPath, m_SubFolder, m_CurrentLanguage, $"{sheetName}.locbin");
+            string neutralPath = CombinePath(Application.streamingAssetsPath, m_SubFolder, neutralLanguage,   $"{sheetName}.locbin");
+
+            byte[] data = await TryLoadAsync(primaryPath);
+            if (data != null)
+            {
+                return data;
+            }
+
+            if (!string.Equals(m_CurrentLanguage, neutralLanguage, StringComparison.OrdinalIgnoreCase))
+            {
+                data = await TryLoadAsync(neutralPath);
+                if (data != null)
+                {
+                    Debug.LogWarning($"{nameof(ILocalisationService)}::{nameof(LoadStreamingAssetAsync)} Falling back {sheetName}: [{m_CurrentLanguage}] => [{neutralLanguage}]");
+                    return data;
+                }
+            }
+
+            throw new FileNotFoundException($"{nameof(ILocalisationService)}::{nameof(LoadStreamingAssetAsync)} Missing .locbin for sheet [{sheetName}] (language=[{m_CurrentLanguage}], neutral=[{neutralLanguage}]");
+        }
+
+        private static async Task<byte[]> TryLoadAsync(string path)
+        {
+#if (UNITY_ANDROID || UNITY_WEBGL) && !UNITY_EDITOR
+            using UnityWebRequest req = UnityWebRequest.Get(path);
+
+            await req.SendWebRequest();
+            if (req.result != UnityWebRequest.Result.Success)
+            {
+                return null;
+            }
+
+            return req.downloadHandler.data;
+#else
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+
+            return await File.ReadAllBytesAsync(path);
+#endif
+        }
+
+        private static string CombinePath(params string[] parts)
+        {
+#if UNITY_ANDROID || UNITY_WEBGL
+                string result = parts[0];
+
+                for (int i = 1; i < parts.Length; i++)
+                {
+                    result = result.TrimEnd('/') + "/" + parts[i].TrimStart('/');
+                }
+
+                return result;
+#else
+            return Path.Combine(parts);
+#endif
         }
     }
 }
