@@ -1,0 +1,27 @@
+name: Jira PR Title Formatter
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+
+jobs:
+  format-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rename PR for Jira
+        uses: peter-evans/rename-pull-request@v4
+        with:
+          # Regex explanation:
+          # - Matches one or more Jira keys at the start or in the title (ABC-123)
+          # - Handles optional slashes or underscores after key
+          # - Ensures a colon and space after the key
+          rename-format: |
+            ${{ github.event.pull_request.title
+              # Remove slashes immediately after Jira key
+              =~ s/\b([A-Z]+-\d+)[\/_]?/\1: /g
+              # Ensure only a single colon/space after each key
+              =~ s/:+\s+/: /g
+              # Trim leading/trailing whitespace
+              =~ s/^\s+|\s+$//g
+            }}
+          skip-if-same: true
