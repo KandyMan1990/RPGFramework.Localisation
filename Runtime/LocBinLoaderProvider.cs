@@ -5,7 +5,7 @@ namespace RPGFramework.Localisation
 {
     internal static class LocBinLoaderProvider
     {
-        internal static ILocBinLoader GetLocBinLoader(int version)
+        internal static ILocBinLoader GetLocBinLoader(byte version)
         {
             return version switch
                    {
