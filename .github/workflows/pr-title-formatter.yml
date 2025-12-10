@@ -3,6 +3,7 @@ name: Jira PR Title Formatter
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
+  workflow_dispatch:
 
 jobs:
   format-title:
