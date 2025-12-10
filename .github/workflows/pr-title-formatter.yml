@@ -2,7 +2,7 @@ name: Jira PR Title Formatter
 
 on:
   pull_request:
-    types: [opened, edited, reopened]
+    types: [opened, edited, reopened, synchronize]
 
 jobs:
   format-title:
