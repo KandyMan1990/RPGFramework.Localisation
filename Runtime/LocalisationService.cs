@@ -72,7 +72,7 @@ namespace RPGFramework.Localisation
         {
             byte[] bytes = await LoadStreamingAssetAsync(sheetName);
 
-            LocData locData = LocData.FromBytes(bytes);
+            LocData locData = LocData.FromBytes(bytes, m_CurrentLanguage, GetNeutralFrom(m_CurrentLanguage));
 
             m_Data[sheetName] = locData;
         }
