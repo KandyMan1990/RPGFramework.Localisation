@@ -20,7 +20,7 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
     /// </summary>
     public class LocBinWriter_Version01 : ILocBinWriter
     {
-        private const int VERSION = 1;
+        private const byte VERSION = 1;
 
         void ILocBinWriter.Generate(LocalisationSheetAsset asset)
         {
@@ -69,14 +69,10 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
                     return;
                 }
 
-                if (!IsValidCulture(code, out CultureInfo culture))
+                if (!IsValidCulture(code, out CultureInfo _))
                 {
                     Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} Language code [{code}] is not valid.  Use a format like 'en-GB' or 'fr-FR'");
-                }
-
-                if (culture.IsNeutralCulture)
-                {
-                    Debug.LogWarning($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} Language code [{code}] is a neutral culture.  Consider using a specific culture instead like 'en-GB' or 'fr-FR'");
+                    return;
                 }
 
                 languages.Add(code);
@@ -142,7 +138,7 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
                 List<string> values   = perLangValues[lang];
                 string       filePath = Path.Combine(folderPath, $"{asset.SheetName}.locbin");
 
-                WriteLocBin(filePath, keys, values);
+                WriteLocBin(lang, filePath, keys, values);
                 Debug.Log($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} Wrote {filePath}");
             }
 
@@ -153,7 +149,7 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
             Debug.Log($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} Done");
         }
 
-        private static void WriteLocBin(string filePath, List<string> keys, List<string> values)
+        private static void WriteLocBin(string language, string filePath, List<string> keys, List<string> values)
         {
             if (keys.Count != values.Count)
             {
@@ -189,8 +185,10 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
             using (FileStream fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
             using (BinaryWriter bw = new BinaryWriter(fs))
             {
-                bw.Write(Encoding.ASCII.GetBytes(Constants.MAGIC));
+                bw.Write(Constants.MAGIC);
                 bw.Write(VERSION);
+                bw.Write((byte)Encoding.UTF8.GetByteCount(language));
+                bw.Write(Encoding.UTF8.GetBytes(language));
                 bw.Write(pairs.Length);
 
                 for (int i = 0; i < pairs.Length; i++)
