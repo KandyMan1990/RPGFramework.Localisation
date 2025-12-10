@@ -17,8 +17,8 @@ jobs:
           # - Handles optional slashes or underscores after key
           # - Ensures a colon and space after the key
           rename-format: |
-            ${{ github.event.pull_request.title
-              # Remove slashes immediately after Jira key
+            ${{ github.event.pull_request.head.title
+              # Replace slashes or underscores immediately after Jira key with colon+space
               =~ s/\b([A-Z]+-\d+)[\/_]?/\1: /g
               # Ensure only a single colon/space after each key
               =~ s/:+\s+/: /g
