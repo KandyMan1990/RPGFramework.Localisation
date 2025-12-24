@@ -204,10 +204,10 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
             }
         }
 
-        private struct KeyPair
+        private readonly struct KeyPair
         {
-            public readonly ulong Hash;
-            public readonly int   Offset;
+            public ulong Hash   { get; }
+            public int   Offset { get; }
 
             public KeyPair(ulong hash, int offset)
             {
