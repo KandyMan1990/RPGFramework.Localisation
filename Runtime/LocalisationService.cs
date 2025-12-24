@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Networking;
 
 namespace RPGFramework.Localisation
 {
@@ -13,9 +12,12 @@ namespace RPGFramework.Localisation
     {
         event Action<string> OnLanguageChanged;
         string               CurrentLanguage { get; }
-        void                 SetCurrentLanguage(string           language);
-        Task                 LoadNewLocalisationDataAsync(string sheetName);
-        void                 ClearLocalisationData();
+        Task                 SetCurrentLanguage(string             language);
+        Task                 LoadNewLocalisationDataAsync(string   sheetName);
+        Task                 LoadNewLocalisationDataAsync(string[] sheetNames);
+        void                 UnloadLocalisationData(string         sheetName);
+        void                 UnloadLocalisationData(string[]       sheetNames);
+        void                 UnloadAllLocalisationData();
         string               Get(string                         key);
         void                 SetStreamingAssetsSubFolder(string folderName);
         string[]             GetAllLanguages();
@@ -47,7 +49,7 @@ namespace RPGFramework.Localisation
             m_SubFolder           = "Localisation";
         }
 
-        void ILocalisationService.SetCurrentLanguage(string language)
+        async Task ILocalisationService.SetCurrentLanguage(string language)
         {
             if (language == m_CurrentLanguage)
             {
@@ -56,20 +58,22 @@ namespace RPGFramework.Localisation
 
             m_CurrentLanguage = language;
 
-            List<string> sheetNames = m_Data.Keys.ToList();
+            string[] sheetNames = m_Data.Keys.ToArray();
 
             UnloadAllSheets(m_Data);
 
-            foreach (string sheetName in sheetNames)
-            {
-                m_LocalisationService.LoadNewLocalisationDataAsync(sheetName);
-            }
+            await m_LocalisationService.LoadNewLocalisationDataAsync(sheetNames);
 
             m_OnLanguageChanged?.Invoke(m_CurrentLanguage);
         }
 
         async Task ILocalisationService.LoadNewLocalisationDataAsync(string sheetName)
         {
+            if (m_Data.ContainsKey(sheetName))
+            {
+                return;
+            }
+
             byte[] bytes = await LoadStreamingAssetAsync(sheetName);
 
             LocData locData = LocData.FromBytes(bytes, m_CurrentLanguage, GetNeutralFrom(m_CurrentLanguage));
@@ -77,7 +81,47 @@ namespace RPGFramework.Localisation
             m_Data[sheetName] = locData;
         }
 
-        void ILocalisationService.ClearLocalisationData()
+        async Task ILocalisationService.LoadNewLocalisationDataAsync(string[] sheetNames)
+        {
+            List<string> sheetsToLoad = new List<string>();
+
+            for (int i = 0; i < sheetNames.Length; i++)
+            {
+                if (!m_Data.ContainsKey(sheetNames[i]))
+                {
+                    sheetsToLoad.Add(sheetNames[i]);
+                }
+            }
+
+            byte[][] bytes = await LoadStreamingAssetsAsync(sheetsToLoad);
+
+            for (int i = 0; i < sheetsToLoad.Count; i++)
+            {
+                LocData locData = LocData.FromBytes(bytes[i], m_CurrentLanguage, GetNeutralFrom(m_CurrentLanguage));
+
+                m_Data[sheetsToLoad[i]] = locData;
+            }
+        }
+
+        void ILocalisationService.UnloadLocalisationData(string sheetName)
+        {
+            if (m_Data.TryGetValue(sheetName, out LocData locData))
+            {
+                locData.Dispose();
+
+                m_Data.Remove(sheetName);
+            }
+        }
+
+        void ILocalisationService.UnloadLocalisationData(string[] sheetNames)
+        {
+            for (int i = 0; i < sheetNames.Length; i++)
+            {
+                m_LocalisationService.UnloadLocalisationData(sheetNames[i]);
+            }
+        }
+
+        void ILocalisationService.UnloadAllLocalisationData()
         {
             UnloadAllSheets(m_Data);
         }
@@ -273,6 +317,18 @@ namespace RPGFramework.Localisation
             }
 
             throw new FileNotFoundException($"{nameof(ILocalisationService)}::{nameof(LoadStreamingAssetAsync)} Missing .locbin for sheet [{sheetName}] (language=[{m_CurrentLanguage}], neutral=[{neutralLanguage}]");
+        }
+
+        private Task<byte[][]> LoadStreamingAssetsAsync(List<string> sheetNames)
+        {
+            List<Task<byte[]>> tasks = new List<Task<byte[]>>(sheetNames.Count);
+
+            foreach (string sheetName in sheetNames)
+            {
+                tasks.Add(LoadStreamingAssetAsync(sheetName));
+            }
+
+            return Task.WhenAll(tasks);
         }
 
         private static async Task<byte[]> TryLoadAsync(string path)
