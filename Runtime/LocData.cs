@@ -24,7 +24,7 @@ namespace RPGFramework.Localisation
             using (MemoryStream ms = new MemoryStream(bytes))
             using (BinaryReader br = new BinaryReader(ms))
             {
-                byte[] magic = br.ReadBytes(4);
+                byte[] magic = br.ReadBytes(Constants.MAGIC.Length);
 
                 if (!magic.SequenceEqual(Constants.MAGIC))
                 {
