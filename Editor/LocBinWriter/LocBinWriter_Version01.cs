@@ -121,10 +121,12 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
             string streamingBase     = asset.Master.StreamingAssetsBase ?? "Localisation";
             string streamingFullBase = Path.Combine(Application.streamingAssetsPath, streamingBase);
 
-            if (!Directory.Exists(streamingFullBase))
+            if (Directory.Exists(streamingFullBase))
             {
-                Directory.CreateDirectory(streamingFullBase);
+                Directory.Delete(streamingFullBase, true);
             }
+
+            Directory.CreateDirectory(streamingFullBase);
 
             foreach (string lang in languages)
             {
