@@ -1,4 +1,5 @@
 ﻿using System.Text;
+
 namespace RPGFramework.Localisation.Editor
 {
     internal static class Fnv1a64

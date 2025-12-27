@@ -1,11 +1,10 @@
 ﻿using System.Data;
-using RPGFramework.Localisation.Editor.LocBinWriter;
 
-namespace RPGFramework.Localisation.Editor
+namespace RPGFramework.Localisation.Editor.LocBinWriter
 {
     internal static class LocBinWriterProvider
     {
-        internal static ILocBinWriter GetLocBinWriter(int version)
+        internal static ILocBinWriter GetLocBinWriter(byte version)
         {
             return version switch
                    {

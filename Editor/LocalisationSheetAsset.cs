@@ -1,5 +1,3 @@
-using RPGFramework.Localisation.Editor.LocBinWriter;
-using UnityEditor;
 using UnityEngine;
 
 namespace RPGFramework.Localisation.Editor
@@ -7,9 +5,6 @@ namespace RPGFramework.Localisation.Editor
     [CreateAssetMenu(menuName = "RPG Framework/Localisation/Localisation Sheet", fileName = "LocalisationSheet")]
     public class LocalisationSheetAsset : ScriptableObject
     {
-        [Header("Master")]
-        public LocalisationMaster Master;
-
         [Header("Sheet")]
         [Tooltip("Tab name inside the Google Sheet")]
         public string SheetName;
@@ -23,29 +18,5 @@ namespace RPGFramework.Localisation.Editor
 
         [Tooltip("An override for the default namespace, leave this blank to use the value in master")]
         public string NamespaceOverride = string.Empty;
-
-        [Tooltip("Which version of the file to use")]
-        public int Version = 1;
-
-        public void Generate()
-        {
-            if (Master == null)
-            {
-                EditorUtility.DisplayDialog("Missing Master", "Set LocalisationMaster first", "OK");
-            }
-            else if (string.IsNullOrEmpty(SheetName))
-            {
-                EditorUtility.DisplayDialog("Missing Sheet Name", "Set SheetName on the asset (for folder naming)", "OK");
-            }
-            else if (string.IsNullOrEmpty(Gid))
-            {
-                EditorUtility.DisplayDialog("Missing Gid", "Set Gid on the asset", "OK");
-            }
-            else
-            {
-                ILocBinWriter locBinWriter = LocBinWriterProvider.GetLocBinWriter(Version);
-                locBinWriter.Generate(this);
-            }
-        }
     }
 }

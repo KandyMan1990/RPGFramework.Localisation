@@ -1,4 +1,5 @@
-﻿using UnityEditor;
+﻿using RPGFramework.Localisation.Editor.LocBinWriter;
+using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
 
@@ -23,15 +24,29 @@ namespace RPGFramework.Localisation.Editor
 
             Button generateButton = new Button(() =>
                                                {
-                                                   LocalisationMaster asset = (LocalisationMaster)target;
+                                                   LocalisationMaster asset        = (LocalisationMaster)target;
+                                                   ILocBinWriter      locBinWriter = LocBinWriterProvider.GetLocBinWriter((byte)asset.Version);
 
                                                    foreach (LocalisationSheetAsset sheetAsset in asset.SheetAssets)
                                                    {
-                                                       sheetAsset.Generate();
+                                                       if (string.IsNullOrEmpty(sheetAsset.SheetName))
+                                                       {
+                                                           EditorUtility.DisplayDialog("Missing Sheet Name", $"Set SheetName on {sheetAsset.name} (for folder naming)", "OK");
+                                                       }
+                                                       else if (string.IsNullOrEmpty(sheetAsset.Gid))
+                                                       {
+                                                           EditorUtility.DisplayDialog("Missing Gid", $"Set Gid on {sheetAsset.name}", "OK");
+                                                       }
+                                                       else
+                                                       {
+                                                           locBinWriter.GenerateLocBin(asset, sheetAsset);
+                                                       }
                                                    }
+
+                                                   locBinWriter.GenerateLocMan(asset);
                                                })
                                     {
-                                            text = "Generate .locbin files"
+                                            text = "Generate .locbin and manifest files"
                                     };
 
             root.Add(generateButton);

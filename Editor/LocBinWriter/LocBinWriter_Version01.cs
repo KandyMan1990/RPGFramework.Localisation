@@ -12,49 +12,51 @@ using UnityEngine.Networking;
 namespace RPGFramework.Localisation.Editor.LocBinWriter
 {
     /// <summary>
-    /// Generates per-language .locbin files and a generated C# key class from a Google Sheet (CSV export).
-    /// Layout:
-    /// Column A: key
-    /// Column B: comment
+    /// Generates per-sheet per-language .locbin files and a generated C# key class from a Google Sheet (CSV export).<br></br>
+    /// Layout:<br></br>
+    /// Column A: key<br></br>
+    /// Column B: comments<br></br>
     /// Column C+: languages (headers in row 1)
     /// </summary>
-    public class LocBinWriter_Version01 : ILocBinWriter
+    internal sealed class LocBinWriter_Version01 : ILocBinWriter
     {
         private const byte VERSION = 1;
 
-        void ILocBinWriter.Generate(LocalisationSheetAsset asset)
+        private readonly string BASE_PATH = Path.Combine(Application.streamingAssetsPath, "Localisation");
+
+        void ILocBinWriter.GenerateLocBin(LocalisationMaster master, LocalisationSheetAsset asset)
         {
-            if (asset == null || asset.Master == null)
+            if (asset == null || master == null)
             {
-                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} Asset/Master is null");
+                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocBin)} Asset/Master is null");
                 return;
             }
 
-            string csvUrl = BuildCsvUrl(asset.Master, asset);
+            string csvUrl = BuildCsvUrl(master, asset);
             if (string.IsNullOrEmpty(csvUrl))
             {
-                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} Could not build CSV URL");
+                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocBin)} Could not build CSV URL");
                 return;
             }
 
             string csv = FetchCsvSync(csvUrl);
             if (string.IsNullOrEmpty(csv))
             {
-                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} Failed to fetch CSV");
+                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocBin)} Failed to fetch CSV");
                 return;
             }
 
             List<string[]> rows = ParseCsv(csv);
             if (rows == null || rows.Count < 1)
             {
-                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} CSV parse produced no rows");
+                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocBin)} CSV parse produced no rows");
                 return;
             }
 
             string[] header = rows[0];
             if (header.Length <= 2)
             {
-                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} Need language headers starting at column C");
+                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocBin)} Need language headers starting at column C");
                 return;
             }
 
@@ -65,13 +67,13 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
 
                 if (string.IsNullOrEmpty(code))
                 {
-                    Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} Header {i} is empty");
+                    Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocBin)} Header {i} is empty");
                     return;
                 }
 
                 if (!IsValidCulture(code, out CultureInfo _))
                 {
-                    Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} Language code [{code}] is not valid.  Use a format like 'en-GB' or 'fr-FR'");
+                    Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocBin)} Language code [{code}] is not valid.  Use a format like 'en-GB' or 'fr-FR'");
                     return;
                 }
 
@@ -114,23 +116,18 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
 
             if (keys.Count == 0)
             {
-                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} No keys found");
+                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocBin)} No keys found");
                 return;
             }
 
-            string streamingBase     = asset.Master.StreamingAssetsBase ?? "Localisation";
-            string streamingFullBase = Path.Combine(Application.streamingAssetsPath, streamingBase);
-
-            if (Directory.Exists(streamingFullBase))
+            if (!Directory.Exists(BASE_PATH))
             {
-                Directory.Delete(streamingFullBase, true);
+                Directory.CreateDirectory(BASE_PATH);
             }
-
-            Directory.CreateDirectory(streamingFullBase);
 
             foreach (string lang in languages)
             {
-                string folderPath = Path.Combine(streamingFullBase, lang);
+                string folderPath = Path.Combine(BASE_PATH, lang);
 
                 if (!Directory.Exists(folderPath))
                 {
@@ -141,14 +138,90 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
                 string       filePath = Path.Combine(folderPath, $"{asset.SheetName}.locbin");
 
                 WriteLocBin(lang, filePath, keys, values);
-                Debug.Log($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} Wrote {filePath}");
+                Debug.Log($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocBin)} Wrote {filePath}");
             }
 
-            WriteGeneratedKeysClass(asset, keys);
+            WriteGeneratedKeysClass(master, asset, keys);
 
             AssetDatabase.Refresh();
 
-            Debug.Log($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.Generate)} Done");
+            Debug.Log($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocBin)} {asset.SheetName} Done");
+        }
+
+        void ILocBinWriter.GenerateLocMan(LocalisationMaster master)
+        {
+            if (master == null)
+            {
+                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocMan)} Master is null");
+                return;
+            }
+
+            if (master.SheetAssets == null || master.SheetAssets.Length == 0)
+            {
+                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocMan)} Master has no sheets");
+                return;
+            }
+
+            Dictionary<string, string> languages = new Dictionary<string, string>();
+
+            foreach (LocalisationSheetAsset asset in master.SheetAssets)
+            {
+                string csvUrl = BuildCsvUrl(master, asset);
+                if (string.IsNullOrEmpty(csvUrl))
+                {
+                    Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocMan)} Could not build CSV URL");
+                    return;
+                }
+
+                string csv = FetchCsvSync(csvUrl);
+                if (string.IsNullOrEmpty(csv))
+                {
+                    Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocMan)} Failed to fetch CSV");
+                    return;
+                }
+
+                List<string[]> rows = ParseCsv(csv);
+                if (rows == null || rows.Count < 1)
+                {
+                    Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocMan)} CSV parse produced no rows");
+                    return;
+                }
+
+                string[] header = rows[0];
+                if (header.Length <= 2)
+                {
+                    Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocMan)} Need language headers starting at column C");
+                    return;
+                }
+
+                for (int i = 2; i < header.Length; i++)
+                {
+                    string code = header[i].Trim();
+
+                    if (string.IsNullOrEmpty(code))
+                    {
+                        Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocMan)} Header {i} is empty");
+                        return;
+                    }
+
+                    if (!IsValidCulture(code, out CultureInfo _))
+                    {
+                        Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocMan)} Language code [{code}] is not valid.  Use a format like 'en-GB' or 'fr-FR'");
+                        return;
+                    }
+
+                    languages.TryAdd(code, code);
+                }
+            }
+
+            const string fileName     = "manifest.locman";
+            string       manifestPath = Path.Combine(BASE_PATH, fileName);
+
+            WriteLocMan(manifestPath, languages.Select(l => l.Key).ToList());
+
+            AssetDatabase.Refresh();
+
+            Debug.Log($"{nameof(LocBinWriter_Version01)}::{nameof(ILocBinWriter.GenerateLocMan)} {fileName} Done");
         }
 
         private static void WriteLocBin(string language, string filePath, List<string> keys, List<string> values)
@@ -184,24 +257,23 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
 
             Array.Sort(pairs, (a, b) => a.Hash.CompareTo(b.Hash));
 
-            using (FileStream fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
-            using (BinaryWriter bw = new BinaryWriter(fs))
+            using FileStream   fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
+            using BinaryWriter bw = new BinaryWriter(fs);
+
+            bw.Write(Constants.LocBinMagic);
+            bw.Write(VERSION);
+            bw.Write((byte)Encoding.UTF8.GetByteCount(language));
+            bw.Write(Encoding.UTF8.GetBytes(language));
+            bw.Write(pairs.Length);
+
+            for (int i = 0; i < pairs.Length; i++)
             {
-                bw.Write(Constants.MAGIC);
-                bw.Write(VERSION);
-                bw.Write((byte)Encoding.UTF8.GetByteCount(language));
-                bw.Write(Encoding.UTF8.GetBytes(language));
-                bw.Write(pairs.Length);
-
-                for (int i = 0; i < pairs.Length; i++)
-                {
-                    bw.Write(pairs[i].Hash);
-                    bw.Write(pairs[i].Offset);
-                }
-
-                bw.Write(tableBytes);
-                bw.Flush();
+                bw.Write(pairs[i].Hash);
+                bw.Write(pairs[i].Offset);
             }
+
+            bw.Write(tableBytes);
+            bw.Flush();
         }
 
         private readonly struct KeyPair
@@ -216,7 +288,7 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
             }
         }
 
-        private static void WriteGeneratedKeysClass(LocalisationSheetAsset asset, List<string> keys)
+        private static void WriteGeneratedKeysClass(LocalisationMaster master, LocalisationSheetAsset asset, List<string> keys)
         {
             string outFolder = asset.GeneratedOutputFolder;
             if (string.IsNullOrEmpty(outFolder))
@@ -229,35 +301,54 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
                 Directory.CreateDirectory(outFolder);
             }
 
-            string namespaceToUse = string.IsNullOrEmpty(asset.NamespaceOverride) ? asset.Master.DefaultNamespace : asset.NamespaceOverride;
+            string namespaceToUse = string.IsNullOrEmpty(asset.NamespaceOverride) ? master.DefaultNamespace : asset.NamespaceOverride;
 
-            string path = Path.Combine(outFolder, $"{asset.SheetName}.cs");
-            using (StreamWriter sw = new StreamWriter(path, false, Encoding.UTF8))
+            string             path = Path.Combine(outFolder, $"{asset.SheetName}.cs");
+            using StreamWriter sw   = new StreamWriter(path, false, Encoding.UTF8);
+
+            sw.WriteLine($"namespace {namespaceToUse}");
+            sw.WriteLine("{");
+            sw.WriteLine($"\t// Auto generated keys for sheet: {asset.SheetName}");
+            sw.WriteLine($"\tpublic static partial class LocalisationKeys");
+            sw.WriteLine("\t{");
+            sw.WriteLine($"\t\tpublic static class {asset.SheetName}");
+            sw.WriteLine("\t\t{");
+
+            sw.WriteLine($"\t\t\t///<summary>{asset.SheetName}</summary>");
+            sw.WriteLine($"\t\t\tpublic const string SHEET_NAME = @\"{asset.SheetName}\";");
+
+            foreach (string key in keys)
             {
-                sw.WriteLine($"namespace {namespaceToUse}");
-                sw.WriteLine("{");
-                sw.WriteLine($"\t// Auto generated keys for sheet: {asset.SheetName}");
-                sw.WriteLine($"\tpublic static partial class LocalisationKeys");
-                sw.WriteLine("\t{");
-                sw.WriteLine($"\t\tpublic static class {asset.SheetName}");
-                sw.WriteLine("\t\t{");
-
-                sw.WriteLine($"\t\t\t///<summary>{asset.SheetName}</summary>");
-                sw.WriteLine($"\t\t\tpublic const string SHEET_NAME = @\"{asset.SheetName}\";");
-
-                foreach (string key in keys)
-                {
-                    string id = SanitiseIdentifier(key);
-                    sw.WriteLine($"\t\t\t///<summary>{key}</summary>");
-                    sw.WriteLine($"\t\t\tpublic const string {id} = @\"{asset.SheetName}/{key}\";");
-                }
-
-                sw.WriteLine("\t\t}");
-                sw.WriteLine("\t}");
-                sw.WriteLine("}");
+                string id = SanitiseIdentifier(key);
+                sw.WriteLine($"\t\t\t///<summary>{key}</summary>");
+                sw.WriteLine($"\t\t\tpublic const string {id} = @\"{asset.SheetName}/{key}\";");
             }
 
+            sw.WriteLine("\t\t}");
+            sw.WriteLine("\t}");
+            sw.WriteLine("}");
+
             Debug.Log($"{nameof(LocBinWriter_Version01)}::{nameof(WriteGeneratedKeysClass)} Generated keys class at {path}");
+        }
+
+        private static void WriteLocMan(string path, IReadOnlyList<string> languages)
+        {
+            using FileStream   fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
+            using BinaryWriter bw = new BinaryWriter(fs);
+
+            bw.Write(Constants.LocManMagic);
+            bw.Write(VERSION);
+
+            foreach (string language in languages)
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(language);
+                bw.Write(bytes);
+                bw.Write((byte)0);
+            }
+
+            bw.Flush();
+
+            Debug.Log($"{nameof(LocBinWriter_Version01)}::{nameof(WriteLocMan)} Wrote {path}");
         }
 
         private static string BuildCsvUrl(LocalisationMaster master, LocalisationSheetAsset asset)
@@ -294,36 +385,33 @@ namespace RPGFramework.Localisation.Editor.LocBinWriter
 
         private static string FetchCsvSync(string url)
         {
-            using (UnityWebRequest req = UnityWebRequest.Get(url))
+            using UnityWebRequest         req = UnityWebRequest.Get(url);
+            UnityWebRequestAsyncOperation op  = req.SendWebRequest();
+
+            while (!op.isDone)
             {
-                UnityWebRequestAsyncOperation op = req.SendWebRequest();
-
-                while (!op.isDone)
-                {
-                }
-
-                if (req.result == UnityWebRequest.Result.ConnectionError || req.result == UnityWebRequest.Result.ProtocolError)
-                {
-                    Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(FetchCsvSync)} Fetch error: {req.error}");
-                    return null;
-                }
-
-                return req.downloadHandler.text;
             }
+
+            if (req.result == UnityWebRequest.Result.ConnectionError || req.result == UnityWebRequest.Result.ProtocolError)
+            {
+                Debug.LogError($"{nameof(LocBinWriter_Version01)}::{nameof(FetchCsvSync)} Fetch error: {req.error}");
+                return null;
+            }
+
+            return req.downloadHandler.text;
         }
 
         private static List<string[]> ParseCsv(string csv)
         {
             List<string[]> outList = new List<string[]>();
 
-            using (StringReader sr = new StringReader(csv))
+            using StringReader sr = new StringReader(csv);
+
+            string line;
+            while ((line = sr.ReadLine()) != null)
             {
-                string line;
-                while ((line = sr.ReadLine()) != null)
-                {
-                    List<string> cells = ParseCsvLine(line);
-                    outList.Add(cells.ToArray());
-                }
+                List<string> cells = ParseCsvLine(line);
+                outList.Add(cells.ToArray());
             }
 
             return outList;

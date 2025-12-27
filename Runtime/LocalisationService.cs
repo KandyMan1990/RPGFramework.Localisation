@@ -1,28 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using UnityEngine;
+using RPGFramework.Localisation.Data;
 
 namespace RPGFramework.Localisation
 {
-    public interface ILocalisationService
-    {
-        event Action<string> OnLanguageChanged;
-        string               CurrentLanguage { get; }
-        Task                 SetCurrentLanguage(string             language);
-        Task                 LoadNewLocalisationDataAsync(string   sheetName);
-        Task                 LoadNewLocalisationDataAsync(string[] sheetNames);
-        void                 UnloadLocalisationData(string         sheetName);
-        void                 UnloadLocalisationData(string[]       sheetNames);
-        void                 UnloadAllLocalisationData();
-        string               Get(string                         key);
-        void                 SetStreamingAssetsSubFolder(string folderName);
-        string[]             GetAllLanguages();
-    }
-
     public class LocalisationService : ILocalisationService
     {
         event Action<string> ILocalisationService.OnLanguageChanged
@@ -35,18 +19,18 @@ namespace RPGFramework.Localisation
 
         private event Action<string> m_OnLanguageChanged;
 
-        private readonly Dictionary<string, LocData> m_Data;
-        private readonly ILocalisationService        m_LocalisationService;
+        private readonly Dictionary<string, LocalisationData> m_LoadedSheets;
+        private readonly ILocalisationService                 m_LocalisationService;
+        private readonly ILocalisationSheetSource             m_LocalisationSheetSource;
 
         private string m_CurrentLanguage;
-        private string m_SubFolder;
 
         public LocalisationService()
         {
-            m_Data                = new Dictionary<string, LocData>();
-            m_LocalisationService = this;
-            m_CurrentLanguage     = "en-GB"; //TODO: this should default to system language and fallback to English
-            m_SubFolder           = "Localisation";
+            m_LocalisationSheetSource = new LocalisationSheetSource();
+            m_LoadedSheets            = new Dictionary<string, LocalisationData>();
+            m_CurrentLanguage         = "en-GB"; //TODO: this should default to system language and fallback to English
+            m_LocalisationService     = this;
         }
 
         async Task ILocalisationService.SetCurrentLanguage(string language)
@@ -56,11 +40,11 @@ namespace RPGFramework.Localisation
                 return;
             }
 
+            string[] sheetNames = m_LoadedSheets.Keys.ToArray();
+
+            m_LocalisationService.UnloadAllLocalisationData();
+
             m_CurrentLanguage = language;
-
-            string[] sheetNames = m_Data.Keys.ToArray();
-
-            UnloadAllSheets(m_Data);
 
             await m_LocalisationService.LoadNewLocalisationDataAsync(sheetNames);
 
@@ -69,47 +53,31 @@ namespace RPGFramework.Localisation
 
         async Task ILocalisationService.LoadNewLocalisationDataAsync(string sheetName)
         {
-            if (m_Data.ContainsKey(sheetName))
+            if (m_LoadedSheets.ContainsKey(sheetName))
             {
                 return;
             }
 
-            byte[] bytes = await LoadStreamingAssetAsync(sheetName);
+            LocalisationData data = await m_LocalisationSheetSource.LoadSheetAsync(m_CurrentLanguage, sheetName);
 
-            LocData locData = LocData.FromBytes(bytes, m_CurrentLanguage, GetNeutralFrom(m_CurrentLanguage));
-
-            m_Data[sheetName] = locData;
+            m_LoadedSheets.Add(sheetName, data);
         }
 
         async Task ILocalisationService.LoadNewLocalisationDataAsync(string[] sheetNames)
         {
-            List<string> sheetsToLoad = new List<string>();
-
             for (int i = 0; i < sheetNames.Length; i++)
             {
-                if (!m_Data.ContainsKey(sheetNames[i]))
-                {
-                    sheetsToLoad.Add(sheetNames[i]);
-                }
-            }
-
-            byte[][] bytes = await LoadStreamingAssetsAsync(sheetsToLoad);
-
-            for (int i = 0; i < sheetsToLoad.Count; i++)
-            {
-                LocData locData = LocData.FromBytes(bytes[i], m_CurrentLanguage, GetNeutralFrom(m_CurrentLanguage));
-
-                m_Data[sheetsToLoad[i]] = locData;
+                await m_LocalisationService.LoadNewLocalisationDataAsync(sheetNames[i]);
             }
         }
 
         void ILocalisationService.UnloadLocalisationData(string sheetName)
         {
-            if (m_Data.TryGetValue(sheetName, out LocData locData))
+            if (m_LoadedSheets.Remove(sheetName, out LocalisationData localisationData))
             {
-                locData.Dispose();
+                localisationData.Dispose();
 
-                m_Data.Remove(sheetName);
+                m_LocalisationSheetSource.UnloadSheet(sheetName);
             }
         }
 
@@ -123,7 +91,17 @@ namespace RPGFramework.Localisation
 
         void ILocalisationService.UnloadAllLocalisationData()
         {
-            UnloadAllSheets(m_Data);
+            foreach (LocalisationData localisationData in m_LoadedSheets.Values)
+            {
+                localisationData.Dispose();
+            }
+
+            m_LoadedSheets.Clear();
+        }
+
+        Task<string[]> ILocalisationService.GetAllLanguages()
+        {
+            return m_LocalisationSheetSource.GetAllLanguages();
         }
 
         string ILocalisationService.Get(string key)
@@ -138,23 +116,20 @@ namespace RPGFramework.Localisation
                 return $"MISSING KEY [{key}]";
             }
 
-            LocData data = GetSheetData(m_Data, sheetName, m_CurrentLanguage);
-
-            if (data == null)
+            if (!m_LoadedSheets.TryGetValue(sheetName, out LocalisationData localisationData))
             {
                 return $"MISSING SHEET [{sheetName}]";
             }
 
             ulong hash  = Fnv1a64.Hash(keyValue);
-            int   index = BinarySearch(data.Hashes, hash);
+            int   index = BinarySearch(localisationData.Hashes, hash);
 
             if (index < 0)
             {
                 return $"MISSING KEY [{key}] IN SHEET [{sheetName}]";
             }
 
-            int    offset = data.Offsets[index];
-            string str    = ReadLengthPrefixedString(data.StringTable, offset);
+            string str = ReadString(localisationData.StringTable, localisationData.Offsets[index]);
 
             if (str == null)
             {
@@ -162,61 +137,6 @@ namespace RPGFramework.Localisation
             }
 
             return str;
-        }
-
-        void ILocalisationService.SetStreamingAssetsSubFolder(string folderName)
-        {
-            m_SubFolder = folderName;
-        }
-
-        string[] ILocalisationService.GetAllLanguages()
-        {
-            string languagesPath = Path.Combine(Application.streamingAssetsPath, m_SubFolder);
-
-            DirectoryInfo   dirInfo     = new DirectoryInfo(languagesPath);
-            DirectoryInfo[] directories = dirInfo.GetDirectories();
-
-            string[] languages = new string[directories.Length];
-
-            for (int i = 0; i < directories.Length; i++)
-            {
-                languages[i] = directories[i].Name;
-            }
-
-            return languages;
-        }
-
-        private static void UnloadAllSheets(Dictionary<string, LocData> data)
-        {
-            foreach (KeyValuePair<string, LocData> kvp in data)
-            {
-                kvp.Value.Dispose();
-            }
-
-            data.Clear();
-        }
-
-        private static LocData GetSheetData(Dictionary<string, LocData> data, string sheetName, string currentLanguage)
-        {
-            if (data.TryGetValue(sheetName, out LocData existing))
-            {
-                return existing;
-            }
-
-            Debug.LogWarning($"{nameof(ILocalisationService)}::{nameof(GetSheetData)} [{sheetName}] [{currentLanguage}] not set");
-            return null;
-        }
-
-        private static string GetNeutralFrom(string language)
-        {
-            if (string.IsNullOrWhiteSpace(language))
-            {
-                return language;
-            }
-
-            string[] parts = language.Split('-', '_');
-
-            return parts.Length > 0 ? parts[0] : language;
         }
 
         private static int BinarySearch(ulong[] arr, ulong target)
@@ -246,7 +166,7 @@ namespace RPGFramework.Localisation
             return -1;
         }
 
-        private static string ReadLengthPrefixedString(byte[] table, int offset)
+        private static string ReadString(byte[] table, int offset)
         {
             if (table == null)
             {
@@ -291,82 +211,6 @@ namespace RPGFramework.Localisation
             keyValue  = key[(slash + 1)..];
 
             return true;
-        }
-
-        private async Task<byte[]> LoadStreamingAssetAsync(string sheetName)
-        {
-            string neutralLanguage = GetNeutralFrom(m_CurrentLanguage);
-
-            string primaryPath = CombinePath(Application.streamingAssetsPath, m_SubFolder, m_CurrentLanguage, $"{sheetName}.locbin");
-            string neutralPath = CombinePath(Application.streamingAssetsPath, m_SubFolder, neutralLanguage,   $"{sheetName}.locbin");
-
-            byte[] data = await TryLoadAsync(primaryPath);
-            if (data != null)
-            {
-                return data;
-            }
-
-            if (!string.Equals(m_CurrentLanguage, neutralLanguage, StringComparison.OrdinalIgnoreCase))
-            {
-                data = await TryLoadAsync(neutralPath);
-                if (data != null)
-                {
-                    Debug.LogWarning($"{nameof(ILocalisationService)}::{nameof(LoadStreamingAssetAsync)} Falling back {sheetName}: [{m_CurrentLanguage}] => [{neutralLanguage}]");
-                    return data;
-                }
-            }
-
-            throw new FileNotFoundException($"{nameof(ILocalisationService)}::{nameof(LoadStreamingAssetAsync)} Missing .locbin for sheet [{sheetName}] (language=[{m_CurrentLanguage}], neutral=[{neutralLanguage}]");
-        }
-
-        private Task<byte[][]> LoadStreamingAssetsAsync(List<string> sheetNames)
-        {
-            List<Task<byte[]>> tasks = new List<Task<byte[]>>(sheetNames.Count);
-
-            foreach (string sheetName in sheetNames)
-            {
-                tasks.Add(LoadStreamingAssetAsync(sheetName));
-            }
-
-            return Task.WhenAll(tasks);
-        }
-
-        private static async Task<byte[]> TryLoadAsync(string path)
-        {
-#if (UNITY_ANDROID || UNITY_WEBGL) && !UNITY_EDITOR
-            using UnityWebRequest req = UnityWebRequest.Get(path);
-
-            await req.SendWebRequest();
-            if (req.result != UnityWebRequest.Result.Success)
-            {
-                return null;
-            }
-
-            return req.downloadHandler.data;
-#else
-            if (!File.Exists(path))
-            {
-                return null;
-            }
-
-            return await File.ReadAllBytesAsync(path);
-#endif
-        }
-
-        private static string CombinePath(params string[] parts)
-        {
-#if UNITY_ANDROID || UNITY_WEBGL
-                string result = parts[0];
-
-                for (int i = 1; i < parts.Length; i++)
-                {
-                    result = result.TrimEnd('/') + "/" + parts[i].TrimStart('/');
-                }
-
-                return result;
-#else
-            return Path.Combine(parts);
-#endif
         }
     }
 }
