@@ -1,4 +1,4 @@
-﻿using RPGFramework.Localisation.Editor.LocBinWriter;
+﻿using RPGFramework.Localisation.Editor.LocalisationBinWriter;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine.UIElements;
@@ -24,8 +24,8 @@ namespace RPGFramework.Localisation.Editor
 
             Button generateButton = new Button(() =>
                                                {
-                                                   LocalisationMaster asset        = (LocalisationMaster)target;
-                                                   ILocBinWriter      locBinWriter = LocBinWriterProvider.GetLocBinWriter((byte)asset.Version);
+                                                   LocalisationMaster     asset                 = (LocalisationMaster)target;
+                                                   ILocalisationBinWriter localisationBinWriter = LocalisationBinWriterProvider.GetLocBinWriter((byte)asset.Version);
 
                                                    foreach (LocalisationSheetAsset sheetAsset in asset.SheetAssets)
                                                    {
@@ -39,11 +39,11 @@ namespace RPGFramework.Localisation.Editor
                                                        }
                                                        else
                                                        {
-                                                           locBinWriter.GenerateLocBin(asset, sheetAsset);
+                                                           localisationBinWriter.GenerateLocBin(asset, sheetAsset);
                                                        }
                                                    }
 
-                                                   locBinWriter.GenerateLocMan(asset);
+                                                   localisationBinWriter.GenerateLocMan(asset);
                                                })
                                     {
                                             text = "Generate .locbin and manifest files"
