@@ -21,16 +21,16 @@ namespace RPGFramework.Localisation
 
         private readonly Dictionary<string, LocalisationData> m_LoadedSheets;
         private readonly ILocalisationService                 m_LocalisationService;
-        private readonly ILocalisationSheetSource             m_LocalisationSheetSource;
+        private readonly ILocalisationSheetSourceProvider     m_LocalisationSheetSourceProvider;
 
         private string m_CurrentLanguage;
 
         public LocalisationService()
         {
-            m_LocalisationSheetSource = new LocalisationSheetSource();
-            m_LoadedSheets            = new Dictionary<string, LocalisationData>();
-            m_CurrentLanguage         = "en-GB"; //TODO: this should default to system language and fallback to English
-            m_LocalisationService     = this;
+            m_LocalisationSheetSourceProvider = new LocalisationSheetSourceProvider();
+            m_LoadedSheets                    = new Dictionary<string, LocalisationData>();
+            m_CurrentLanguage                 = "en-GB"; //TODO: this should default to system language and fallback to English
+            m_LocalisationService             = this;
         }
 
         async Task ILocalisationService.SetCurrentLanguage(string language)
@@ -58,7 +58,9 @@ namespace RPGFramework.Localisation
                 return;
             }
 
-            LocalisationData data = await m_LocalisationSheetSource.LoadSheetAsync(m_CurrentLanguage, sheetName);
+            ILocalisationSheetSource source = await m_LocalisationSheetSourceProvider.GetLocalisationSheetSource(m_CurrentLanguage);
+
+            LocalisationData data = await source.LoadSheetAsync(m_CurrentLanguage, sheetName);
 
             m_LoadedSheets.Add(sheetName, data);
         }
@@ -76,8 +78,6 @@ namespace RPGFramework.Localisation
             if (m_LoadedSheets.Remove(sheetName, out LocalisationData localisationData))
             {
                 localisationData.Dispose();
-
-                m_LocalisationSheetSource.UnloadSheet(sheetName);
             }
         }
 
@@ -101,7 +101,7 @@ namespace RPGFramework.Localisation
 
         Task<string[]> ILocalisationService.GetAllLanguages()
         {
-            return m_LocalisationSheetSource.GetAllLanguages();
+            return m_LocalisationSheetSourceProvider.GetAllLanguages();
         }
 
         string ILocalisationService.Get(string key)

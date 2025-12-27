@@ -33,7 +33,7 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
             return localisationBinLoader.LoadLocBin(reader);
         }
 
-        internal static string[] ReadLocMan(byte[] bytes)
+        internal static ManifestData ReadLocMan(byte[] bytes)
         {
             using MemoryStream stream = new MemoryStream(bytes);
             using BinaryReader reader = new BinaryReader(stream);
@@ -48,7 +48,9 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
 
             ILocalisationBinLoader localisationBinLoader = LocalisationBinLoaderProvider.GetLocalisationBinLoader(version);
 
-            return localisationBinLoader.LoadLocMan(reader);
+            string[] languages = localisationBinLoader.LoadLocMan(reader);
+
+            return new ManifestData(version, languages);
         }
     }
 }

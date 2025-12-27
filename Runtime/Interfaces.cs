@@ -24,11 +24,15 @@ namespace RPGFramework.Localisation
         string               Get(string key);
     }
 
+    internal interface ILocalisationSheetSourceProvider
+    {
+        Task<ILocalisationSheetSource> GetLocalisationSheetSource(string language);
+        Task<string[]>                 GetAllLanguages();
+    }
+
     internal interface ILocalisationSheetSource
     {
-        Task<string[]>         GetAllLanguages();
         Task<LocalisationData> LoadSheetAsync(string language, string sheetName);
-        void                   UnloadSheet(string    sheetName);
     }
 
     internal interface IStreamingAssetLoader
