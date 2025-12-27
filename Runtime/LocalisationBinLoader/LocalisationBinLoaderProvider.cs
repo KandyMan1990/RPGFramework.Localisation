@@ -9,7 +9,7 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
             return version switch
                    {
                            1 => new LocalisationBinLoader_Version01(),
-                           _ => throw new VersionNotFoundException($"LocalisationBinLoader version [{version}] is not registered")
+                           _ => throw new VersionNotFoundException($"{nameof(LocalisationBinLoaderProvider)}::{nameof(GetLocalisationBinLoader)} version [{version}] is not registered")
                    };
         }
     }

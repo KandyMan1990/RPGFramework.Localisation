@@ -9,7 +9,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
             return version switch
                    {
                            1 => new LocalisationBinWriter_Version01(),
-                           _ => throw new VersionNotFoundException($"LocBinWriter version [{version}] is not registered")
+                           _ => throw new VersionNotFoundException($"{nameof(LocalisationBinWriterProvider)}::{nameof(GetLocBinWriter)} version [{version}] is not registered")
                    };
         }
     }
