@@ -11,6 +11,8 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
 {
     internal class LocalisationBinLoader_Version01 : ILocalisationBinLoader
     {
+        private const byte VERSION = 1;
+
         private readonly ILocalisationBinLoader m_LocalisationBinLoader;
 
         public LocalisationBinLoader_Version01()
@@ -63,9 +65,9 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
             }
 
             byte version = reader.ReadByte();
-            if (version != 1)
+            if (version != VERSION)
             {
-                throw new VersionNotFoundException($"{nameof(LocalisationBinLoader_Version01)}::{nameof(ValidateHeader)} Expected version [1] but locbin version is [{version}]");
+                throw new VersionNotFoundException($"{nameof(LocalisationBinLoader_Version01)}::{nameof(ValidateHeader)} Expected version [{VERSION}] but locbin version is [{version}]");
             }
 
             byte   cultureLength = reader.ReadByte();
