@@ -11,7 +11,7 @@ using RPGFramework.Localisation.Manifest;
 
 namespace RPGFramework.Localisation
 {
-    public class LocalisationService : ILocalisationService
+    public sealed class LocalisationService : ILocalisationService
     {
         event Action<string> ILocalisationService.OnLanguageChanged
         {
@@ -27,8 +27,9 @@ namespace RPGFramework.Localisation
         private readonly ILocalisationService                 m_LocalisationService;
         private readonly Task                                 m_ManifestTask;
 
-        private string       m_CurrentLanguage;
-        private ManifestData m_Manifest;
+        private string                 m_CurrentLanguage;
+        private ManifestData           m_Manifest;
+        private ILocalisationBinLoader m_LocalisationBinLoader;
 
         public LocalisationService()
         {
@@ -72,9 +73,7 @@ namespace RPGFramework.Localisation
 
             await LoadManifestAsync();
 
-            ILocalisationBinLoader binLoader = LocalisationBinLoaderProvider.Get(m_Manifest.Version);
-
-            LocalisationData data = await binLoader.LoadSheetAsync(m_CurrentLanguage, sheetName);
+            LocalisationData data = await m_LocalisationBinLoader.LoadSheetAsync(m_CurrentLanguage, sheetName);
 
             m_LoadedSheets.Add(sheetName, data);
         }
@@ -98,9 +97,7 @@ namespace RPGFramework.Localisation
 
             await LoadManifestAsync();
 
-            ILocalisationBinLoader binLoader = LocalisationBinLoaderProvider.Get(m_Manifest.Version);
-
-            LocalisationData[] data = await binLoader.LoadSheetsAsync(m_CurrentLanguage, sheetsToLoad.ToArray());
+            LocalisationData[] data = await m_LocalisationBinLoader.LoadSheetsAsync(m_CurrentLanguage, sheetsToLoad.ToArray());
 
             for (int i = 0; i < data.Length; i++)
             {
@@ -170,7 +167,8 @@ namespace RPGFramework.Localisation
 
         private async Task LoadManifestAsync()
         {
-            m_Manifest = await ManifestProvider.GetManifestAsync();
+            m_Manifest              = await ManifestProvider.GetManifestAsync();
+            m_LocalisationBinLoader = LocalisationBinLoaderProvider.Get(m_Manifest.Version);
         }
 
         private static int BinarySearch(ulong[] arr, ulong target)

@@ -263,7 +263,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
             bw.Write(VERSION);
             bw.Write((byte)Encoding.UTF8.GetByteCount(language));
             bw.Write(Encoding.UTF8.GetBytes(language));
-            bw.Write(pairs.Length);
+            bw.Write((uint)pairs.Length);
 
             for (int i = 0; i < pairs.Length; i++)
             {
