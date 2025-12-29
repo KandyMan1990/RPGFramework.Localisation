@@ -9,7 +9,7 @@ namespace RPGFramework.Localisation.StreamingAssetLoader
         {
             if (!File.Exists(path))
             {
-                return null;
+                throw new FileNotFoundException($"{nameof(FileStreamingAssetLoader)}::{nameof(IStreamingAssetLoader.LoadAsync)} File not found at path [{path}]");
             }
 
             return await File.ReadAllBytesAsync(path);

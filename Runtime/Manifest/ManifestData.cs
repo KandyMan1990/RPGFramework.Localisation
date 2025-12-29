@@ -1,6 +1,6 @@
-﻿namespace RPGFramework.Localisation.Data
+﻿namespace RPGFramework.Localisation.Manifest
 {
-    internal readonly struct ManifestData
+    internal sealed class ManifestData
     {
         internal byte     Version   { get; }
         internal string[] Languages { get; }

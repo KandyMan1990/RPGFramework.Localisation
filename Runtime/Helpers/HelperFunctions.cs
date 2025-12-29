@@ -1,10 +1,10 @@
 ﻿using System.IO;
 
-namespace RPGFramework.Localisation
+namespace RPGFramework.Localisation.Helpers
 {
-    internal static class Utilities
+    internal static class HelperFunctions
     {
-        internal static string Combine(params string[] parts)
+        internal static string CombinePath(params string[] parts)
         {
 #if UNITY_ANDROID || UNITY_WEBGL
             return string.Join('/', parts.Select(p => p.Trim('/')));

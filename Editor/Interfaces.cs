@@ -2,7 +2,7 @@
 {
     internal interface ILocalisationBinWriter
     {
-        void GenerateLocBin(LocalisationMaster master, LocalisationSheetAsset asset);
-        void GenerateLocMan(LocalisationMaster master);
+        void GenerateLocalisationBin(LocalisationMaster      master, LocalisationSheetAsset asset);
+        void GenerateLocalisationManifest(LocalisationMaster master);
     }
 }

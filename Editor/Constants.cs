@@ -1,7 +1,7 @@
-﻿using RPGFramework.Localisation.Helpers;
+﻿using System.IO;
 using UnityEngine;
 
-namespace RPGFramework.Localisation
+namespace RPGFramework.Localisation.Editor
 {
     internal static class Constants
     {
@@ -27,6 +27,6 @@ namespace RPGFramework.Localisation
                 MAGIC_4
         };
         
-        internal static string BasePath => HelperFunctions.CombinePath(Application.streamingAssetsPath, "Localisation");
+        internal static string BasePath => Path.Combine(Application.streamingAssetsPath, "Localisation");
     }
 }

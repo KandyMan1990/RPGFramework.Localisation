@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace RPGFramework.Localisation.Editor
+namespace RPGFramework.Localisation.Editor.Helpers
 {
     internal static class Fnv1a64
     {
@@ -19,7 +19,7 @@ namespace RPGFramework.Localisation.Editor
             return Hash(bytes);
         }
 
-        internal static ulong Hash(byte[] bytes)
+        private static ulong Hash(byte[] bytes)
         {
             if (bytes == null)
             {

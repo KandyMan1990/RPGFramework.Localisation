@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.IO;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -13,7 +14,7 @@ namespace RPGFramework.Localisation.StreamingAssetLoader
             await req.SendWebRequest();
             if (req.result != UnityWebRequest.Result.Success)
             {
-                return null;
+                throw new IOException($"{nameof(WebStreamingAssetLoader)}::{nameof(IStreamingAssetLoader.LoadAsync)} Status [{req.result}] when requesting file at path [{path}]");
             }
 
             return req.downloadHandler.data;

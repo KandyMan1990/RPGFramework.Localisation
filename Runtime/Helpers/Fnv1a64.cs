@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace RPGFramework.Localisation
+namespace RPGFramework.Localisation.Helpers
 {
     internal static class Fnv1a64
     {
@@ -19,7 +19,7 @@ namespace RPGFramework.Localisation
             return Hash(bytes);
         }
 
-        internal static ulong Hash(byte[] bytes)
+        private static ulong Hash(byte[] bytes)
         {
             if (bytes == null)
             {

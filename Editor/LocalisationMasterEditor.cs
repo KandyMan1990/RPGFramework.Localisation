@@ -25,7 +25,7 @@ namespace RPGFramework.Localisation.Editor
             Button generateButton = new Button(() =>
                                                {
                                                    LocalisationMaster     asset                 = (LocalisationMaster)target;
-                                                   ILocalisationBinWriter localisationBinWriter = LocalisationBinWriterProvider.GetLocBinWriter((byte)asset.Version);
+                                                   ILocalisationBinWriter localisationBinWriter = LocalisationBinWriterProvider.GetLocalisationBinWriter((byte)asset.Version);
 
                                                    foreach (LocalisationSheetAsset sheetAsset in asset.SheetAssets)
                                                    {
@@ -39,11 +39,11 @@ namespace RPGFramework.Localisation.Editor
                                                        }
                                                        else
                                                        {
-                                                           localisationBinWriter.GenerateLocBin(asset, sheetAsset);
+                                                           localisationBinWriter.GenerateLocalisationBin(asset, sheetAsset);
                                                        }
                                                    }
 
-                                                   localisationBinWriter.GenerateLocMan(asset);
+                                                   localisationBinWriter.GenerateLocalisationManifest(asset);
                                                })
                                     {
                                             text = "Generate .locbin and manifest files"

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using System.Threading.Tasks;
 using RPGFramework.Localisation.Data;
 
@@ -24,17 +23,6 @@ namespace RPGFramework.Localisation
         string               Get(string key);
     }
 
-    internal interface ILocalisationSheetSourceProvider
-    {
-        Task<ILocalisationSheetSource> GetLocalisationSheetSource(string language);
-        Task<string[]>                 GetAllLanguages();
-    }
-
-    internal interface ILocalisationSheetSource
-    {
-        Task<LocalisationData> LoadSheetAsync(string language, string sheetName);
-    }
-
     internal interface IStreamingAssetLoader
     {
         Task<byte[]> LoadAsync(string path);
@@ -42,7 +30,7 @@ namespace RPGFramework.Localisation
 
     internal interface ILocalisationBinLoader
     {
-        LocalisationData LoadLocBin(BinaryReader reader);
-        string[]         LoadLocMan(BinaryReader reader);
+        Task<LocalisationData> LoadSheetAsync(string  language, string   sheetName);
+        Task<LocalisationData[]> LoadSheetsAsync(string language, string[] sheetNames);
     }
 }
