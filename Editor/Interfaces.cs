@@ -1,8 +1,10 @@
-﻿namespace RPGFramework.Localisation.Editor
+﻿using System.Collections.Generic;
+using RPGFramework.Localisation.Editor.LocalisationBinWriter;
+
+namespace RPGFramework.Localisation.Editor
 {
     internal interface ILocalisationBinWriter
     {
-        void GenerateLocalisationBin(LocalisationMaster      master, LocalisationSheetAsset asset);
-        void GenerateLocalisationManifest(LocalisationMaster master);
+        void GenerateLocalisationBin(List<LocalisationSheetContent> dataToWrite);
     }
 }

@@ -1,6 +1,8 @@
-﻿using RPGFramework.Localisation.Editor.LocalisationBinWriter;
+﻿using System;
+using RPGFramework.Localisation.Editor.LocalisationBinWriter;
 using UnityEditor;
 using UnityEditor.UIElements;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace RPGFramework.Localisation.Editor
@@ -22,28 +24,37 @@ namespace RPGFramework.Localisation.Editor
                              }
                      });
 
-            Button generateButton = new Button(() =>
+            Button generateButton = new Button(async () =>
                                                {
-                                                   LocalisationMaster     asset                 = (LocalisationMaster)target;
-                                                   ILocalisationBinWriter localisationBinWriter = LocalisationBinWriterProvider.GetLocalisationBinWriter((byte)asset.Version);
-
-                                                   foreach (LocalisationSheetAsset sheetAsset in asset.SheetAssets)
+                                                   try
                                                    {
-                                                       if (string.IsNullOrEmpty(sheetAsset.SheetName))
-                                                       {
-                                                           EditorUtility.DisplayDialog("Missing Sheet Name", $"Set SheetName on {sheetAsset.name} (for folder naming)", "OK");
-                                                       }
-                                                       else if (string.IsNullOrEmpty(sheetAsset.Gid))
-                                                       {
-                                                           EditorUtility.DisplayDialog("Missing Gid", $"Set Gid on {sheetAsset.name}", "OK");
-                                                       }
-                                                       else
-                                                       {
-                                                           localisationBinWriter.GenerateLocalisationBin(asset, sheetAsset);
-                                                       }
-                                                   }
+                                                       LocalisationMaster asset = (LocalisationMaster)target;
 
-                                                   localisationBinWriter.GenerateLocalisationManifest(asset);
+                                                       foreach (LocalisationSheetAsset sheetAsset in asset.SheetAssets)
+                                                       {
+                                                           if (string.IsNullOrEmpty(sheetAsset.SheetName))
+                                                           {
+                                                               EditorUtility.DisplayDialog("Missing Sheet Name", $"Set SheetName on {sheetAsset.name} (for folder naming)", "OK");
+                                                               return;
+                                                           }
+
+                                                           if (string.IsNullOrEmpty(sheetAsset.Gid))
+                                                           {
+                                                               EditorUtility.DisplayDialog("Missing Gid", $"Set Gid on {sheetAsset.name}", "OK");
+                                                               return;
+                                                           }
+                                                       }
+
+                                                       await LocalisationWriter.WriteAsync(asset);
+                                                   }
+                                                   catch (Exception e)
+                                                   {
+                                                       Debug.LogException(e);
+                                                   }
+                                                   finally
+                                                   {
+                                                       EditorUtility.ClearProgressBar();
+                                                   }
                                                })
                                     {
                                             text = "Generate .locbin and manifest files"
