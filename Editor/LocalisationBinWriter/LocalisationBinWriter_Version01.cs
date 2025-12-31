@@ -44,19 +44,13 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
             using FileStream   fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
             using BinaryWriter bw = new BinaryWriter(fs);
 
+            byte[] payload = LocalisationWriter.BuildV1SheetPayload(bin);
+
             bw.Write(Constants.LocBinMagic);
             bw.Write(VERSION);
             bw.Write((byte)Encoding.UTF8.GetByteCount(language));
             bw.Write(Encoding.UTF8.GetBytes(language));
-            bw.Write((uint)bin.Hashes.Length);
-
-            for (int i = 0; i < bin.Hashes.Length; i++)
-            {
-                bw.Write(bin.Hashes[i]);
-                bw.Write(bin.Offsets[i]);
-            }
-
-            bw.Write(bin.StringTable);
+            bw.Write(payload);
             bw.Flush();
         }
     }

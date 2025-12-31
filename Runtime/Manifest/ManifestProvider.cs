@@ -26,33 +26,29 @@ namespace RPGFramework.Localisation.Manifest
                 throw new FileNotFoundException($"{nameof(ManifestProvider)}::{nameof(GetManifestAsync)} Manifest not found");
             }
 
-            return ReadManifest(bytes);
-        }
-
-        private static ManifestData ReadManifest(byte[] bytes)
-        {
             using MemoryStream stream = new MemoryStream(bytes);
             using BinaryReader reader = new BinaryReader(stream);
 
+            byte localisationVersion = ReadManifestHeader(reader);
+
+            return ReadManifestBody(reader, localisationVersion);
+        }
+
+        private static byte ReadManifestHeader(BinaryReader reader)
+        {
             byte[] magic = reader.ReadBytes(Constants.LocManMagic.Length);
             if (!magic.SequenceEqual(Constants.LocManMagic))
             {
-                throw new InvalidDataException($"{nameof(ManifestProvider)}::{nameof(ReadManifest)} Invalid locman magic");
+                throw new InvalidDataException($"{nameof(ManifestProvider)}::{nameof(ReadManifestHeader)} Invalid locman magic");
             }
 
             byte version = reader.ReadByte();
 
-            return version switch
-                   {
-                           1 => ReadV1(reader),
-                           _ => throw new VersionNotFoundException($"{nameof(ManifestProvider)}::{nameof(ReadManifest)} version [{version}] is not registered")
-                   };
+            return version;
         }
 
-        private static ManifestData ReadV1(BinaryReader reader)
+        private static ManifestData ReadManifestBody(BinaryReader reader, byte localisationVersion)
         {
-            const byte version = 1;
-
             int    remaining = (int)(reader.BaseStream.Length - reader.BaseStream.Position);
             byte[] data      = reader.ReadBytes(remaining);
 
@@ -76,7 +72,7 @@ namespace RPGFramework.Localisation.Manifest
 
             string[] languages = results.ToArray();
 
-            return new ManifestData(version, languages);
+            return new ManifestData(localisationVersion, languages);
         }
     }
 }

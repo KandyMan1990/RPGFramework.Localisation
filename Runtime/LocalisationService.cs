@@ -167,8 +167,8 @@ namespace RPGFramework.Localisation
 
         private async Task LoadManifestAsync()
         {
-            m_Manifest              = await ManifestProvider.GetManifestAsync();
-            m_LocalisationBinLoader = LocalisationBinLoaderProvider.Get(m_Manifest.Version);
+            m_Manifest              ??= await ManifestProvider.GetManifestAsync();
+            m_LocalisationBinLoader ??= LocalisationBinLoaderProvider.Get(m_Manifest.Version);
         }
 
         private static int BinarySearch(ulong[] arr, ulong target)

@@ -47,6 +47,25 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
             Debug.Log($"{nameof(LocalisationWriter)}::{nameof(WriteAsync)} {master.name} file and class generation complete");
         }
 
+        internal static byte[] BuildV1SheetPayload(LocalisationSheetBinary bin)
+        {
+            using MemoryStream ms = new MemoryStream();
+            using BinaryWriter bw = new BinaryWriter(ms);
+
+            bw.Write((uint)bin.Hashes.Length);
+
+            for (int i = 0; i < bin.Hashes.Length; i++)
+            {
+                bw.Write(bin.Hashes[i]);
+                bw.Write(bin.Offsets[i]);
+            }
+
+            bw.Write(bin.StringTable);
+            bw.Flush();
+
+            return ms.ToArray();
+        }
+
         private static async Task WriteLocalisationBinAsync(LocalisationMaster master)
         {
             List<LocalisationSheetContent> dataToWrite = new List<LocalisationSheetContent>(master.SheetAssets.Length);
