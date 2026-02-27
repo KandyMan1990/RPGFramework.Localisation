@@ -2,7 +2,8 @@
     "name": "RPGFramework.Localisation.Editor",
     "rootNamespace": "RPGFramework.Localisation.Editor",
     "references": [
-        "RPGFramework.Localisation"
+        "RPGFramework.Localisation",
+        "RPGFramework.Hashing"
     ],
     "includePlatforms": [
         "Editor"

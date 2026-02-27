@@ -1,7 +1,9 @@
 {
     "name": "RPGFramework.Localisation",
     "rootNamespace": "RPGFramework.Localisation",
-    "references": [],
+    "references": [
+        "RPGFramework.Hashing"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

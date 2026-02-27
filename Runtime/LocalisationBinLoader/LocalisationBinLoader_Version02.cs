@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using RPGFramework.Hashing;
 using RPGFramework.Localisation.Data;
 using RPGFramework.Localisation.Helpers;
 

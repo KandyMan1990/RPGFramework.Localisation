@@ -4,12 +4,15 @@
   "displayName": "RPG Framework Localisation",
   "description": "Localisation system for the RPG Framework",
   "unity": "6000.0",
- "keywords": [
+  "keywords": [
     "RPG Framework",
     "Localisation"
   ],
   "author": {
     "name": "Elliott Armstrong",
     "url": "https://github.com/KandyMan1990/RPGFramework.Localisation"
+  },
+  "dependencies": {
+    "com.rpgframework.hashing": "1.0.0"
   }
 }

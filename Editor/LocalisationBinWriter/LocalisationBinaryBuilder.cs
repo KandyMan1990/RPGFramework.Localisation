@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using RPGFramework.Localisation.Editor.Helpers;
+using RPGFramework.Hashing;
 
 namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
 {
