@@ -6,7 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 using RPGFramework.Hashing;
 using RPGFramework.Localisation.Data;
-using RPGFramework.Localisation.Helpers;
 using RPGFramework.Localisation.LocalisationBinLoader;
 using RPGFramework.Localisation.Manifest;
 
@@ -164,6 +163,30 @@ namespace RPGFramework.Localisation
             }
 
             return str;
+        }
+
+        string ILocalisationService.Get(ulong key)
+        {
+            foreach (KeyValuePair<string, LocalisationData> kvp in m_LoadedSheets)
+            {
+                int index = BinarySearch(kvp.Value.Hashes, key);
+
+                if (index < 0)
+                {
+                    continue;
+                }
+
+                string str = ReadString(kvp.Value.StringTable, kvp.Value.Offsets[index]);
+
+                if (str == null)
+                {
+                    return $"MISSING VALUE FOR [{key}] IN SHEET [{kvp.Key}]";
+                }
+
+                return str;
+            }
+
+            return $"[{key}] MISSING";
         }
 
         private async Task LoadManifestAsync()
