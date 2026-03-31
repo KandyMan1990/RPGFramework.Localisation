@@ -10,23 +10,63 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
     {
         internal static List<string[]> ParseCsv(string csv)
         {
-            List<string[]> outList = new List<string[]>();
+            List<string[]> rows       = new List<string[]>();
+            List<string>   currentRow = new List<string>();
+            bool           inQuotes   = false;
+            StringBuilder  cell       = new StringBuilder();
 
-            using StringReader sr = new StringReader(csv);
-
-            string line;
-            while ((line = sr.ReadLine()) != null)
+            for (int i = 0; i < csv.Length; i++)
             {
-                List<string> cells = ParseCsvLine(line);
-                outList.Add(cells.ToArray());
+                char c = csv[i];
+
+                if (c == '"')
+                {
+                    if (inQuotes && i + 1 < csv.Length && csv[i + 1] == '"')
+                    {
+                        cell.Append('"');
+                        i++;
+                    }
+                    else
+                    {
+                        inQuotes = !inQuotes;
+                    }
+                }
+                else if (c == ',' && !inQuotes)
+                {
+                    currentRow.Add(cell.ToString());
+                    cell.Clear();
+                }
+                else if ((c == '\n' || c == '\r') && !inQuotes)
+                {
+                    if (c == '\r' && i + 1 < csv.Length && csv[i + 1] == '\n')
+                    {
+                        i++;
+                    }
+
+                    currentRow.Add(cell.ToString());
+                    cell.Clear();
+
+                    rows.Add(currentRow.ToArray());
+                    currentRow = new List<string>();
+                }
+                else
+                {
+                    cell.Append(c);
+                }
             }
 
-            if (outList.Count < 1)
+            if (cell.Length > 0 || currentRow.Count > 0)
+            {
+                currentRow.Add(cell.ToString());
+                rows.Add(currentRow.ToArray());
+            }
+
+            if (rows.Count < 1)
             {
                 throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(ParseCsv)} CSV could not be parsed");
             }
 
-            return outList;
+            return rows;
         }
 
         internal static List<string> GetLanguages(string[] header)
@@ -96,44 +136,6 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
             {
                 throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(GetValues)} No keys found");
             }
-        }
-
-        private static List<string> ParseCsvLine(string line)
-        {
-            List<string>  result   = new List<string>();
-            bool          inQuotes = false;
-            StringBuilder sb       = new StringBuilder();
-
-            for (int i = 0; i < line.Length; i++)
-            {
-                char c = line[i];
-
-                if (c == '"')
-                {
-                    if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
-                    {
-                        sb.Append('"');
-                        i++;
-                    }
-                    else
-                    {
-                        inQuotes = !inQuotes;
-                    }
-                }
-                else if (c == ',' && !inQuotes)
-                {
-                    result.Add(sb.ToString());
-                    sb.Clear();
-                }
-                else
-                {
-                    sb.Append(c);
-                }
-            }
-
-            result.Add(sb.ToString());
-
-            return result;
         }
 
         private static bool IsValidCulture(string code, out CultureInfo culture)
