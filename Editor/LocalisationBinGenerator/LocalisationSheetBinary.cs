@@ -1,4 +1,4 @@
-﻿namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
+﻿namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
     internal readonly struct LocalisationSheetBinary
     {

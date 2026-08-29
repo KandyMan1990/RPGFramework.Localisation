@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
+namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
     internal static class GoogleSheetDataProvider
     {

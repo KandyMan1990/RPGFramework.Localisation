@@ -4,9 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using RPGFramework.Hashing;
-using UnityEngine;
 
-namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
+namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
     /// <summary>
     /// Generates per-sheet per-language .locbin files and a generated C# key class from a Google Sheet (CSV export).<br></br>
@@ -15,19 +14,21 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
     /// Column B: comments<br></br>
     /// Column C+: languages (headers in row 1)
     /// </summary>
-    internal sealed class LocalisationBinWriter_Version02 : ILocalisationBinWriter
+    internal sealed class LocalisationBinGenerator_Version02 : ILocalisationBinGenerator
     {
         private const byte VERSION = 2;
 
-        void ILocalisationBinWriter.GenerateLocalisationBin(List<LocalisationSheetContent> dataToWrite)
+        List<LocalisationBinFile> ILocalisationBinGenerator.BuildLocalisationBin(List<LocalisationSheetContent> dataToWrite)
         {
+            List<LocalisationBinFile> files = new List<LocalisationBinFile>();
+
             List<string> languages = dataToWrite[0].Languages;
 
             for (int i = 1; i < dataToWrite.Count; i++)
             {
                 if (!languages.SequenceEqual(dataToWrite[i].Languages))
                 {
-                    throw new ArgumentException($"{nameof(LocalisationBinWriter_Version02)}::{nameof(ILocalisationBinWriter.GenerateLocalisationBin)} All sheets should include the same languages in the same order");
+                    throw new ArgumentException($"{nameof(LocalisationBinGenerator_Version02)}::{nameof(ILocalisationBinGenerator.BuildLocalisationBin)} All sheets should include the same languages in the same order");
                 }
             }
 
@@ -44,13 +45,13 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
                     bins.Add((data.SheetName, bin));
                 }
 
-                WriteLocBin(language, filePath, bins);
-
-                Debug.Log($"{nameof(LocalisationBinWriter_Version02)}::{nameof(ILocalisationBinWriter.GenerateLocalisationBin)} Wrote {filePath}");
+                files.Add(new LocalisationBinFile(filePath, BuildLocBin(language, bins)));
             }
+
+            return files;
         }
 
-        private static void WriteLocBin(string language, string filePath, List<(string sheetName, LocalisationSheetBinary bin)> bins)
+        private static byte[] BuildLocBin(string language, List<(string sheetName, LocalisationSheetBinary bin)> bins)
         {
             int sheetCount = bins.Count;
 
@@ -68,14 +69,14 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
 
                 if (seenSheetHashes.TryGetValue(hashes[i], out string existing))
                 {
-                    throw new InvalidDataException($"{nameof(LocalisationBinWriter_Version02)}::{nameof(WriteLocBin)} Sheets [{bins[i].sheetName}] and [{existing}] both hash to [{hashes[i]}]. Rename one of them");
+                    throw new InvalidDataException($"{nameof(LocalisationBinGenerator_Version02)}::{nameof(BuildLocBin)} Sheets [{bins[i].sheetName}] and [{existing}] both hash to [{hashes[i]}]. Rename one of them");
                 }
 
                 seenSheetHashes.Add(hashes[i], bins[i].sheetName);
             }
 
-            using FileStream   fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);
-            using BinaryWriter bw = new BinaryWriter(fs);
+            using MemoryStream ms = new MemoryStream();
+            using BinaryWriter bw = new BinaryWriter(ms);
 
             bw.Write(Constants.LocBinMagic);
             bw.Write(VERSION);
@@ -84,7 +85,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
 
             bw.Write((uint)sheetCount);
 
-            long tocStart = fs.Position;
+            long tocStart = ms.Position;
             long tocSize  = sheetCount * (sizeof(ulong) + sizeof(uint) + sizeof(uint));
 
             long payloadStart = tocStart + tocSize;
@@ -106,6 +107,10 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
             }
 
             bw.Flush();
+
+            byte[] bytes = ms.ToArray();
+
+            return bytes;
         }
     }
 }

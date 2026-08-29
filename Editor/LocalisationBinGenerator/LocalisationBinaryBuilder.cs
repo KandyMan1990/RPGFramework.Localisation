@@ -4,7 +4,7 @@ using System.IO;
 using System.Text;
 using RPGFramework.Hashing;
 
-namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
+namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
     internal static class LocalisationBinaryBuilder
     {

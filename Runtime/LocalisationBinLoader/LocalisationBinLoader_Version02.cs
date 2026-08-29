@@ -1,22 +1,33 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using RPGFramework.Hashing;
 using RPGFramework.Localisation.Data;
 using RPGFramework.Localisation.Helpers;
+using RPGFramework.Localisation.StreamingAssetLoader;
 
 namespace RPGFramework.Localisation.LocalisationBinLoader
 {
+    /// <summary>
+    /// One .locbin per language, holding every sheet.
+    /// </summary>
+    /// <remarks>
+    /// The header and table of contents are read once per language and cached; each sheet is then read by
+    /// seeking to its recorded offset and reading its recorded length. Only the sheets actually asked for are
+    /// read, so loading one sheet does not pull in the rest of the language.
+    /// </remarks>
     internal sealed class LocalisationBinLoader_Version02 : ILocalisationBinLoader
     {
         private const byte VERSION = 2;
 
-        private const int TOC_ENTRY_SIZE = sizeof(ulong) + sizeof(uint) + sizeof(uint);
+        private const int TOC_ENTRY_SIZE     = sizeof(ulong) + sizeof(uint) + sizeof(uint);
+        private const int HEADER_PROBE_BYTES = 1024;
 
         private readonly ILocalisationBinLoader m_LocalisationBinLoader;
 
         private Dictionary<ulong, SheetData> m_TableOfContents;
         private string                       m_LoadedLanguage;
+        private string                       m_LoadedPath;
 
         internal LocalisationBinLoader_Version02()
         {
@@ -32,59 +43,81 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
 
         async Task<LocalisationData[]> ILocalisationBinLoader.LoadSheetsAsync(string language, string[] sheetNames)
         {
-            string neutral = HelperFunctions.GetNeutralLanguage(language);
+            IStreamingAssetLoader assetLoader = StreamingAssetLoaderProvider.Get();
 
-            byte[] bytes = await LocalisationBinFileLoader.LoadFileAsync(language, neutral, null, VERSION);
-
-            using MemoryStream stream = new MemoryStream(bytes);
-            using BinaryReader reader = new BinaryReader(stream);
-
-            Dictionary<ulong, SheetData> tableOfContents = m_TableOfContents;
-
-            if (m_LoadedLanguage != language || tableOfContents == null)
+            if (m_LoadedLanguage != language || m_TableOfContents == null)
             {
-                LocalisationBinReader.ValidateHeader(reader, language, neutral, VERSION);
+                string neutral = HelperFunctions.GetNeutralLanguage(language);
+                string path    = await LocalisationBinFileLoader.ResolvePathAsync(language, neutral, null, VERSION);
 
-                tableOfContents = ReadTableOfContents(reader);
+                Dictionary<ulong, SheetData> tableOfContents = await ReadTableOfContentsAsync(assetLoader, path, language, neutral);
 
                 m_TableOfContents = tableOfContents;
                 m_LoadedLanguage  = language;
+                m_LoadedPath      = path;
             }
 
-            LocalisationData[] data = ReadData(reader, tableOfContents, sheetNames);
+            LocalisationData[] data = await ReadDataAsync(assetLoader, m_LoadedPath, m_TableOfContents, sheetNames);
 
             return data;
         }
 
-        private static Dictionary<ulong, SheetData> ReadTableOfContents(BinaryReader binaryReader)
+        private static async Task<Dictionary<ulong, SheetData>> ReadTableOfContentsAsync(IStreamingAssetLoader assetLoader, string path, string language, string neutralLanguage)
         {
-            Stream stream     = binaryReader.BaseStream;
-            uint   sheetCount = binaryReader.ReadUInt32();
-            long   maxSheets  = (stream.Length - stream.Position) / TOC_ENTRY_SIZE;
+            byte[] prefix = await assetLoader.LoadRangeAsync(path, 0, HEADER_PROBE_BYTES);
 
-            if (sheetCount > maxSheets)
+            if (prefix == null || prefix.Length == 0)
             {
-                throw new InvalidDataException($"{nameof(LocalisationBinLoader_Version02)}::{nameof(ReadTableOfContents)} Sheet count [{sheetCount}] exceeds the [{maxSheets}] the remaining {stream.Length - stream.Position} bytes can hold");
+                throw new InvalidDataException($"{nameof(LocalisationBinLoader_Version02)}::{nameof(ReadTableOfContentsAsync)} [{path}] is empty");
+            }
+
+            uint sheetCount;
+            long tableStart;
+
+            using (MemoryStream headerStream = new MemoryStream(prefix))
+            using (BinaryReader headerReader = new BinaryReader(headerStream))
+            {
+                LocalisationBinReader.ValidateHeader(headerReader, language, neutralLanguage, VERSION);
+
+                sheetCount = headerReader.ReadUInt32();
+                tableStart = headerStream.Position;
+            }
+
+            long tableSize = (long)sheetCount * TOC_ENTRY_SIZE;
+
+            if (tableSize > int.MaxValue)
+            {
+                throw new InvalidDataException($"{nameof(LocalisationBinLoader_Version02)}::{nameof(ReadTableOfContentsAsync)} Sheet count [{sheetCount}] in [{path}] is not credible");
+            }
+
+            byte[] tableBytes = await assetLoader.LoadRangeAsync(path, tableStart, (int)tableSize);
+
+            if (tableBytes == null || tableBytes.Length != tableSize)
+            {
+                throw new InvalidDataException($"{nameof(LocalisationBinLoader_Version02)}::{nameof(ReadTableOfContentsAsync)} Sheet count [{sheetCount}] exceeds what [{path}] can hold");
             }
 
             Dictionary<ulong, SheetData> tableOfContents = new Dictionary<ulong, SheetData>((int)sheetCount);
 
+            using MemoryStream tableStream = new MemoryStream(tableBytes);
+            using BinaryReader tableReader = new BinaryReader(tableStream);
+
             for (int i = 0; i < sheetCount; i++)
             {
-                ulong sheetHash          = binaryReader.ReadUInt64();
-                uint  sheetStartPosition = binaryReader.ReadUInt32();
-                uint  sheetLength        = binaryReader.ReadUInt32();
+                ulong sheetHash          = tableReader.ReadUInt64();
+                uint  sheetStartPosition = tableReader.ReadUInt32();
+                uint  sheetLength        = tableReader.ReadUInt32();
 
                 if (!tableOfContents.TryAdd(sheetHash, new SheetData(sheetStartPosition, sheetLength)))
                 {
-                    throw new InvalidDataException($"{nameof(LocalisationBinLoader_Version02)}::{nameof(ReadTableOfContents)} Duplicate sheet hash [{sheetHash}] in the table of contents");
+                    throw new InvalidDataException($"{nameof(LocalisationBinLoader_Version02)}::{nameof(ReadTableOfContentsAsync)} Duplicate sheet hash [{sheetHash}] in the table of contents");
                 }
             }
 
             return tableOfContents;
         }
 
-        private static LocalisationData[] ReadData(BinaryReader binaryReader, Dictionary<ulong, SheetData> tableOfContents, string[] sheetNames)
+        private static async Task<LocalisationData[]> ReadDataAsync(IStreamingAssetLoader assetLoader, string path, Dictionary<ulong, SheetData> tableOfContents, string[] sheetNames)
         {
             LocalisationData[] data = new LocalisationData[sheetNames.Length];
 
@@ -94,10 +127,20 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
 
                 if (!tableOfContents.TryGetValue(sheetHash, out SheetData sheetData))
                 {
-                    throw new KeyNotFoundException($"{nameof(LocalisationBinLoader_Version02)}::{nameof(ReadData)} Hash key not found for sheet [{sheetNames[i]}]");
+                    throw new KeyNotFoundException($"{nameof(LocalisationBinLoader_Version02)}::{nameof(ReadDataAsync)} Hash key not found for sheet [{sheetNames[i]}]");
                 }
 
-                data[i] = LocalisationBinReader.ReadLocalisationData(binaryReader, (int)sheetData.StartPosition, (int)sheetData.Length);
+                byte[] payload = await assetLoader.LoadRangeAsync(path, sheetData.StartPosition, (int)sheetData.Length);
+
+                if (payload == null || payload.Length != sheetData.Length)
+                {
+                    throw new InvalidDataException($"{nameof(LocalisationBinLoader_Version02)}::{nameof(ReadDataAsync)} Sheet [{sheetNames[i]}] runs past the end of [{path}]");
+                }
+
+                using MemoryStream stream = new MemoryStream(payload);
+                using BinaryReader reader = new BinaryReader(stream);
+
+                data[i] = LocalisationBinReader.ReadLocalisationData(reader, 0, payload.Length);
             }
 
             return data;

@@ -221,6 +221,27 @@ namespace RPGFramework.Localisation
             return $"MISSING KEY [{key}]";
         }
 
+        bool ILocalisationService.TryGet(string key, out string value)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                value = null;
+
+                return false;
+            }
+
+            bool found = TryGetString(Fnv1a64.Hash(key), out value);
+
+            return found;
+        }
+
+        bool ILocalisationService.TryGet(ulong key, out string value)
+        {
+            bool found = TryGetString(key, out value);
+
+            return found;
+        }
+
         private bool TryGetString(ulong key, out string value)
         {
             if (!m_Index.TryGetValue(key, out StringRef stringRef))

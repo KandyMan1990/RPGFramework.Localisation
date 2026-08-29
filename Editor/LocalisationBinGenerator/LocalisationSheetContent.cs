@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
+namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
     internal readonly struct LocalisationSheetContent
     {

@@ -1,10 +1,13 @@
 ﻿using System.Collections.Generic;
-using RPGFramework.Localisation.Editor.LocalisationBinWriter;
+using RPGFramework.Localisation.Editor.LocalisationBinGenerator;
 
 namespace RPGFramework.Localisation.Editor
 {
-    internal interface ILocalisationBinWriter
+    internal interface ILocalisationBinGenerator
     {
-        void GenerateLocalisationBin(List<LocalisationSheetContent> dataToWrite);
+        /// <summary>
+        /// Builds every locbin in memory.
+        /// </summary>
+        List<LocalisationBinFile> BuildLocalisationBin(List<LocalisationSheetContent> dataToWrite);
     }
 }

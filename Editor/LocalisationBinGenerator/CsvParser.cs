@@ -4,7 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
-namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
+namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
     internal static class CsvParser
     {

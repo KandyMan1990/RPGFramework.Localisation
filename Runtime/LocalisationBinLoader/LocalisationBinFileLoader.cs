@@ -49,6 +49,42 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
                   };
         }
 
+        /// <summary>
+        /// Resolves which locbin actually exists for a language, applying the same regional-to-neutral fallback
+        /// as <see cref="LoadFileAsync"/> but returning the path rather than the content, so a caller can read
+        /// parts of the file instead of all of it.
+        /// </summary>
+        internal static async Task<string> ResolvePathAsync(string language, string neutralLanguage, string sheetName, byte version)
+        {
+            string primary = GetPath(language, sheetName, version);
+
+            IStreamingAssetLoader assetLoader = StreamingAssetLoaderProvider.Get();
+
+            byte[] probe = await assetLoader.LoadRangeAsync(primary, 0, 1);
+
+            if (probe != null)
+            {
+                return primary;
+            }
+
+            string fallback = null;
+
+            if (neutralLanguage != language)
+            {
+                fallback = GetPath(neutralLanguage, sheetName, version);
+                probe    = await assetLoader.LoadRangeAsync(fallback, 0, 1);
+
+                if (probe != null)
+                {
+                    return fallback;
+                }
+            }
+
+            string attempted = fallback == null ? $"[{primary}]" : $"[{primary}] and [{fallback}]";
+
+            throw new FileNotFoundException($"{nameof(LocalisationBinFileLoader)}::{nameof(ResolvePathAsync)} Missing .locbin language=[{language}], neutral=[{neutralLanguage}]. Tried {attempted}");
+        }
+
         private static string GetPath(string language, string sheetName, byte version)
         {
             return version switch

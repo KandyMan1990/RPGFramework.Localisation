@@ -20,13 +20,16 @@ namespace RPGFramework.Localisation
         void                 UnloadLocalisationData(string         sheetName);
         void                 UnloadLocalisationData(string[]       sheetNames);
         void                 UnloadAllLocalisationData();
-        string               Get(string key);
-        string               Get(ulong  key);
+        string               Get(string    key);
+        string               Get(ulong     key);
+        bool                 TryGet(string key, out string value);
+        bool                 TryGet(ulong  key, out string value);
     }
 
     internal interface IStreamingAssetLoader
     {
-        Task<byte[]> LoadAsync(string path);
+        Task<byte[]> LoadAsync(string      path);
+        Task<byte[]> LoadRangeAsync(string path, long offset, int length);
     }
 
     internal interface ILocalisationBinLoader

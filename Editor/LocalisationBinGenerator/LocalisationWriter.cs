@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 
-namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
+namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
     internal static class LocalisationWriter
     {
@@ -212,6 +212,9 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
 
         private static void WriteLocalisationBin(LocalisationMaster master, List<LocalisationSheetContent> sheets)
         {
+            ILocalisationBinGenerator localisationBinGenerator = LocalisationBinGeneratorProvider.GetLocalisationBinGenerator((byte)master.Version);
+            List<LocalisationBinFile> files                    = localisationBinGenerator.BuildLocalisationBin(sheets);
+
             if (Directory.Exists(Constants.BasePath))
             {
                 Directory.Delete(Constants.BasePath, true);
@@ -219,9 +222,19 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
 
             Directory.CreateDirectory(Constants.BasePath);
 
-            ILocalisationBinWriter localisationBinWriter = LocalisationBinWriterProvider.GetLocalisationBinWriter((byte)master.Version);
+            foreach (LocalisationBinFile file in files)
+            {
+                string directory = Path.GetDirectoryName(file.Path);
 
-            localisationBinWriter.GenerateLocalisationBin(sheets);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                File.WriteAllBytes(file.Path, file.Bytes);
+
+                Debug.Log($"{nameof(LocalisationWriter)}::{nameof(WriteLocalisationBin)} Wrote {file.Path}");
+            }
         }
 
         private static void WriteLocalisationManifest(LocalisationMaster master, List<LocalisationSheetContent> sheets)
