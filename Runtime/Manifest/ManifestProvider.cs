@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Data;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -23,7 +22,7 @@ namespace RPGFramework.Localisation.Manifest
 
             if (bytes == null || bytes.Length == 0)
             {
-                throw new FileNotFoundException($"{nameof(ManifestProvider)}::{nameof(GetManifestAsync)} Manifest not found");
+                throw new FileNotFoundException($"{nameof(ManifestProvider)}::{nameof(GetManifestAsync)} Manifest not found at [{path}]");
             }
 
             using MemoryStream stream = new MemoryStream(bytes);
@@ -57,17 +56,25 @@ namespace RPGFramework.Localisation.Manifest
 
             for (int i = 0; i < data.Length; i++)
             {
-                if (data[i] == 0)
+                if (data[i] != 0)
                 {
-                    int length = i - start;
-                    if (length > 0)
-                    {
-                        string str = Encoding.UTF8.GetString(data, start, length);
-                        results.Add(str);
-                    }
-
-                    start = i + 1;
+                    continue;
                 }
+
+                int length = i - start;
+
+                if (length > 0)
+                {
+                    string str = Encoding.UTF8.GetString(data, start, length);
+                    results.Add(str);
+                }
+
+                start = i + 1;
+            }
+
+            if (results.Count == 0)
+            {
+                throw new InvalidDataException($"{nameof(ManifestProvider)}::{nameof(ReadManifestBody)} Manifest declares no languages");
             }
 
             string[] languages = results.ToArray();

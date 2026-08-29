@@ -40,7 +40,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
                 foreach (LocalisationSheetContent data in dataToWrite)
                 {
                     List<string>            values = data.Values[language];
-                    LocalisationSheetBinary bin    = LocalisationBinaryBuilder.BuildBinary(data.Keys, values);
+                    LocalisationSheetBinary bin    = LocalisationBinaryBuilder.BuildBinary(data.SheetName, data.Keys, values);
                     bins.Add((data.SheetName, bin));
                 }
 
@@ -58,11 +58,20 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
             uint[]   lengths  = new uint[sheetCount];
             ulong[]  hashes   = new ulong[sheetCount];
 
+            Dictionary<ulong, string> seenSheetHashes = new Dictionary<ulong, string>(sheetCount);
+
             for (int i = 0; i < sheetCount; i++)
             {
                 payloads[i] = LocalisationWriter.BuildV1SheetPayload(bins[i].bin);
                 lengths[i]  = (uint)payloads[i].Length;
                 hashes[i]   = Fnv1a64.Hash(bins[i].sheetName);
+
+                if (seenSheetHashes.TryGetValue(hashes[i], out string existing))
+                {
+                    throw new InvalidDataException($"{nameof(LocalisationBinWriter_Version02)}::{nameof(WriteLocBin)} Sheets [{bins[i].sheetName}] and [{existing}] both hash to [{hashes[i]}]. Rename one of them");
+                }
+
+                seenSheetHashes.Add(hashes[i], bins[i].sheetName);
             }
 
             using FileStream   fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None);

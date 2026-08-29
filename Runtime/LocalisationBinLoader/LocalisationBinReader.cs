@@ -8,12 +8,15 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
 {
     internal static class LocalisationBinReader
     {
+        private const int ENTRY_SIZE = sizeof(ulong) + sizeof(int);
+
         internal static void ValidateHeader(BinaryReader reader, string language, string neutralLanguage, byte fileVersion)
         {
             byte[] magic = reader.ReadBytes(Constants.LocBinMagic.Length);
+
             if (!magic.SequenceEqual(Constants.LocBinMagic))
             {
-                throw new InvalidDataException("Invalid locbin magic");
+                throw new InvalidDataException($"{nameof(LocalisationBinReader)}::{nameof(ValidateHeader)} Invalid locbin magic");
             }
 
             byte version = reader.ReadByte();
@@ -33,9 +36,23 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
 
         internal static LocalisationData ReadLocalisationData(BinaryReader binaryReader, int startPosition, int length)
         {
-            binaryReader.BaseStream.Position = startPosition;
+            Stream stream = binaryReader.BaseStream;
 
-            uint count = binaryReader.ReadUInt32();
+            if (startPosition < 0 || length < 0 || startPosition + (long)length > stream.Length)
+            {
+                throw new InvalidDataException($"{nameof(LocalisationBinReader)}::{nameof(ReadLocalisationData)} Sheet range [{startPosition}..{startPosition + (long)length}] lies outside the {stream.Length} byte file");
+            }
+
+            stream.Position = startPosition;
+
+            uint count       = binaryReader.ReadUInt32();
+            long headerBytes = stream.Position - startPosition;
+            long maxEntries  = (length - headerBytes) / ENTRY_SIZE;
+
+            if (count > maxEntries)
+            {
+                throw new InvalidDataException($"{nameof(LocalisationBinReader)}::{nameof(ReadLocalisationData)} Entry count [{count}] exceeds the [{maxEntries}] the sheet's {length} bytes can hold");
+            }
 
             ulong[] hashes  = new ulong[count];
             int[]   offsets = new int[count];
@@ -46,8 +63,19 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
                 offsets[i] = binaryReader.ReadInt32();
             }
 
-            int    remaining = (int)(length - (binaryReader.BaseStream.Position - startPosition));
-            byte[] table     = binaryReader.ReadBytes(remaining);
+            int remaining = (int)(length - (stream.Position - startPosition));
+
+            if (remaining < 0)
+            {
+                throw new InvalidDataException($"{nameof(LocalisationBinReader)}::{nameof(ReadLocalisationData)} Sheet index overran its declared {length} byte extent");
+            }
+
+            byte[] table = binaryReader.ReadBytes(remaining);
+
+            if (table.Length != remaining)
+            {
+                throw new InvalidDataException($"{nameof(LocalisationBinReader)}::{nameof(ReadLocalisationData)} String table truncated, expected [{remaining}] bytes but read [{table.Length}]");
+            }
 
             return new LocalisationData(hashes, offsets, table);
         }

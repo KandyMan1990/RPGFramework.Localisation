@@ -27,7 +27,10 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
 
             LocalisationBinReader.ValidateHeader(reader, language, neutral, VERSION);
 
-            return LocalisationBinReader.ReadLocalisationData(reader, (int)reader.BaseStream.Position, (int)reader.BaseStream.Length);
+            int startPosition = (int)stream.Position;
+            int payloadLength = (int)(stream.Length - startPosition);
+
+            return LocalisationBinReader.ReadLocalisationData(reader, startPosition, payloadLength);
         }
 
         Task<LocalisationData[]> ILocalisationBinLoader.LoadSheetsAsync(string language, string[] sheetNames)

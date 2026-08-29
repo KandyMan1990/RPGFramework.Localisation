@@ -18,7 +18,7 @@ namespace RPGFramework.Localisation.Editor
         public string DefaultNamespace = "GameName.Localisation";
 
         [Tooltip("Which version of the .locbin format to use")]
-        public LocalisationVersion Version;
+        public LocalisationVersion Version = LocalisationVersion.FilePerSheet;
 
         [Tooltip("LocalisationSheetAsset files to generate .locbin and manifest files")]
         public LocalisationSheetAsset[] SheetAssets;

@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
@@ -26,25 +24,41 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
                 throw new ArgumentException($"{nameof(LocalisationWriter)}::{nameof(WriteAsync)} Master has no sheets");
             }
 
-            UpdateProgress("Writing localisation bin file(s)...", 0f);
+            if (!Enum.IsDefined(typeof(LocalisationVersion), master.Version))
+            {
+                throw new ArgumentException($"{nameof(LocalisationWriter)}::{nameof(WriteAsync)} Master [{master.name}] has an unset or unknown format version [{(int)master.Version}]. Choose one of: {string.Join(", ", Enum.GetNames(typeof(LocalisationVersion)))}");
+            }
 
-            await WriteLocalisationBinAsync(master);
+            try
+            {
+                UpdateProgress("Fetching localisation content...", 0f);
 
-            UpdateProgress("Writing localisation manifest file...", 0.33f);
+                List<LocalisationSheetContent> sheets = await FetchAllSheetsAsync(master);
 
-            await WriteLocalisationManifestAsync(master);
+                UpdateProgress("Validating localisation content...", 0.5f);
 
-            UpdateProgress("Generating localisation keys class file(s)...", 0.67f);
+                ValidateSheets(master, sheets);
 
-            await WriteKeysToClassFile(master);
+                UpdateProgress("Writing localisation bin file(s)...", 0.6f);
 
-            UpdateProgress("Refreshing assets...", 0.9f);
+                WriteLocalisationBin(master, sheets);
+
+                UpdateProgress("Writing localisation manifest file...", 0.75f);
+
+                WriteLocalisationManifest(master, sheets);
+
+                UpdateProgress("Generating localisation keys class file(s)...", 0.85f);
+
+                WriteKeysToClassFiles(master, sheets);
+
+                Debug.Log($"{nameof(LocalisationWriter)}::{nameof(WriteAsync)} {master.name} file and class generation complete");
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
 
             AssetDatabase.Refresh();
-
-            UpdateProgress("Done", 1f);
-
-            Debug.Log($"{nameof(LocalisationWriter)}::{nameof(WriteAsync)} {master.name} file and class generation complete");
         }
 
         internal static byte[] BuildV1SheetPayload(LocalisationSheetBinary bin)
@@ -66,23 +80,138 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
             return ms.ToArray();
         }
 
-        private static async Task WriteLocalisationBinAsync(LocalisationMaster master)
+        private static async Task<List<LocalisationSheetContent>> FetchAllSheetsAsync(LocalisationMaster master)
         {
-            List<LocalisationSheetContent> dataToWrite = new List<LocalisationSheetContent>(master.SheetAssets.Length);
+            List<LocalisationSheetContent> sheets = new List<LocalisationSheetContent>(master.SheetAssets.Length);
 
-            foreach (LocalisationSheetAsset sheetAsset in master.SheetAssets)
+            for (int i = 0; i < master.SheetAssets.Length; i++)
             {
+                LocalisationSheetAsset sheetAsset = master.SheetAssets[i];
+
+                if (UpdateProgress($"Fetching sheet [{sheetAsset.SheetName}] ({i + 1} of {master.SheetAssets.Length})...",
+                                   0.5f * i / master.SheetAssets.Length))
+                {
+                    throw new OperationCanceledException($"{nameof(LocalisationWriter)}::{nameof(FetchAllSheetsAsync)} Cancelled while fetching sheet [{sheetAsset.SheetName}]. Nothing was written");
+                }
+
                 string csv = await GoogleSheetDataProvider.GetCsv(master, sheetAsset);
 
-                List<string[]> rows = CsvParser.ParseCsv(csv);
+                List<string[]> rows      = CsvParser.ParseCsv(csv);
+                List<string>   languages = CsvParser.GetLanguages(rows[0]);
 
-                List<string> languages = CsvParser.GetLanguages(rows[0]);
+                CsvParser.GetValues(languages, rows, out List<string> keys, out List<string> _, out Dictionary<string, List<string>> values);
 
-                CsvParser.GetValues(languages, rows, out List<string> keys, out List<string> comments, out Dictionary<string, List<string>> values);
-
-                dataToWrite.Add(new LocalisationSheetContent(sheetAsset.SheetName, languages, keys, values));
+                sheets.Add(new LocalisationSheetContent(sheetAsset.SheetName, languages, keys, values));
             }
 
+            return sheets;
+        }
+
+        private static void ValidateSheets(LocalisationMaster master, List<LocalisationSheetContent> sheets)
+        {
+            HashSet<string> seenSheetNames = new HashSet<string>(StringComparer.Ordinal);
+
+            for (int i = 0; i < sheets.Count; i++)
+            {
+                LocalisationSheetContent sheet     = sheets[i];
+                LocalisationSheetAsset   asset     = master.SheetAssets[i];
+                string                   sheetName = sheet.SheetName;
+
+                if (!IsValidIdentifier(sheetName))
+                {
+                    throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateSheets)} Sheet name [{sheetName}] on asset [{asset.name}] is not a valid C# identifier, and is emitted as a class name");
+                }
+
+                if (!seenSheetNames.Add(sheetName))
+                {
+                    throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateSheets)} Two sheets are both named [{sheetName}]. Names must be unique: they scope every key and name the generated file");
+                }
+
+                string namespaceToUse = string.IsNullOrEmpty(asset.NamespaceOverride) ? master.DefaultNamespace : asset.NamespaceOverride;
+
+                if (!IsValidNamespace(namespaceToUse))
+                {
+                    throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateSheets)} Namespace [{namespaceToUse}] used by sheet [{sheetName}] is not a valid C# namespace");
+                }
+
+                ValidateGeneratedIdentifiers(sheetName, sheet.Keys);
+
+                ReportEmptyValues(sheetName, sheet);
+            }
+
+            ValidateLanguageConsistency(master, sheets);
+        }
+
+        private static void ValidateLanguageConsistency(LocalisationMaster master, List<LocalisationSheetContent> sheets)
+        {
+            if (master.Version != LocalisationVersion.FilePerLanguage || sheets.Count < 2)
+            {
+                return;
+            }
+
+            List<string> expected = sheets[0].Languages;
+
+            for (int i = 1; i < sheets.Count; i++)
+            {
+                List<string> actual = sheets[i].Languages;
+
+                bool matches = actual.Count == expected.Count;
+
+                for (int j = 0; matches && j < expected.Count; j++)
+                {
+                    matches = string.Equals(expected[j], actual[j], StringComparison.Ordinal);
+                }
+
+                if (!matches)
+                {
+                    throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateLanguageConsistency)} Sheet [{sheets[i].SheetName}] declares languages [{string.Join(", ", actual)}] but sheet [{sheets[0].SheetName}] declares [{string.Join(", ", expected)}]. The {nameof(LocalisationVersion.FilePerLanguage)} format needs the same languages, in the same order, in every sheet");
+                }
+            }
+        }
+
+        private static void ValidateGeneratedIdentifiers(string sheetName, List<string> keys)
+        {
+            Dictionary<string, string> seen = new Dictionary<string, string>(keys.Count, StringComparer.Ordinal);
+
+            seen.Add("SHEET_NAME", "<generated sheet name constant>");
+
+            foreach (string key in keys)
+            {
+                string identifier = SanitiseIdentifier(key);
+
+                if (seen.TryGetValue(identifier, out string existing))
+                {
+                    throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateGeneratedIdentifiers)} Sheet [{sheetName}]: keys [{key}] and [{existing}] both generate the identifier [{identifier}]. Rename one of them");
+                }
+
+                seen.Add(identifier, key);
+            }
+        }
+
+        private static void ReportEmptyValues(string sheetName, LocalisationSheetContent sheet)
+        {
+            foreach (string language in sheet.Languages)
+            {
+                List<string> values = sheet.Values[language];
+                int          empty  = 0;
+
+                for (int i = 0; i < values.Count; i++)
+                {
+                    if (string.IsNullOrEmpty(values[i]))
+                    {
+                        empty++;
+                    }
+                }
+
+                if (empty > 0)
+                {
+                    Debug.LogWarning($"{nameof(LocalisationWriter)}::{nameof(ReportEmptyValues)} Sheet [{sheetName}] language [{language}] has [{empty}] of [{values.Count}] entries untranslated. These render as empty text, not as a missing-key marker");
+                }
+            }
+        }
+
+        private static void WriteLocalisationBin(LocalisationMaster master, List<LocalisationSheetContent> sheets)
+        {
             if (Directory.Exists(Constants.BasePath))
             {
                 Directory.Delete(Constants.BasePath, true);
@@ -92,71 +221,57 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
 
             ILocalisationBinWriter localisationBinWriter = LocalisationBinWriterProvider.GetLocalisationBinWriter((byte)master.Version);
 
-            localisationBinWriter.GenerateLocalisationBin(dataToWrite);
+            localisationBinWriter.GenerateLocalisationBin(sheets);
         }
 
-        private static async Task WriteLocalisationManifestAsync(LocalisationMaster master)
+        private static void WriteLocalisationManifest(LocalisationMaster master, List<LocalisationSheetContent> sheets)
         {
-            Dictionary<string, string> languages = new Dictionary<string, string>();
+            List<string>    languages = new List<string>();
+            HashSet<string> seen      = new HashSet<string>(StringComparer.Ordinal);
 
-            foreach (LocalisationSheetAsset sheetAsset in master.SheetAssets)
+            foreach (LocalisationSheetContent sheet in sheets)
             {
-                string csv = await GoogleSheetDataProvider.GetCsv(master, sheetAsset);
-
-                List<string[]> rows = CsvParser.ParseCsv(csv);
-
-                List<string> sheetLanguages = CsvParser.GetLanguages(rows[0]);
-
-                foreach (string language in sheetLanguages)
+                foreach (string language in sheet.Languages)
                 {
-                    languages.TryAdd(language, language);
+                    if (seen.Add(language))
+                    {
+                        languages.Add(language);
+                    }
                 }
             }
 
             string manifestPath = Path.Combine(Constants.BasePath, MANIFEST_FILENAME);
 
-            WriteLocalisationManifest(manifestPath, languages.Select(l => l.Key).ToList(), (byte)master.Version);
-
-            Debug.Log($"{nameof(LocalisationWriter)}::{nameof(WriteLocalisationManifestAsync)} Wrote {manifestPath}");
-        }
-
-        private static void WriteLocalisationManifest(string path, IReadOnlyList<string> languages, byte version)
-        {
-            using FileStream   fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
-            using BinaryWriter bw = new BinaryWriter(fs);
-
-            bw.Write(Constants.LocManMagic);
-            bw.Write(version);
-
-            foreach (string language in languages)
+            using (FileStream fs = new FileStream(manifestPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (BinaryWriter bw = new BinaryWriter(fs))
             {
-                byte[] bytes = Encoding.UTF8.GetBytes(language);
-                bw.Write(bytes);
-                bw.Write((byte)0);
+                bw.Write(Constants.LocManMagic);
+                bw.Write((byte)master.Version);
+
+                foreach (string language in languages)
+                {
+                    bw.Write(Encoding.UTF8.GetBytes(language));
+                    bw.Write((byte)0);
+                }
+
+                bw.Flush();
             }
 
-            bw.Flush();
+            Debug.Log($"{nameof(LocalisationWriter)}::{nameof(WriteLocalisationManifest)} Wrote {manifestPath}");
         }
 
-        private static async Task WriteKeysToClassFile(LocalisationMaster master)
+        private static void WriteKeysToClassFiles(LocalisationMaster master, List<LocalisationSheetContent> sheets)
         {
-            foreach (LocalisationSheetAsset sheetAsset in master.SheetAssets)
+            for (int i = 0; i < sheets.Count; i++)
             {
-                string csv = await GoogleSheetDataProvider.GetCsv(master, sheetAsset);
-
-                List<string[]> rows = CsvParser.ParseCsv(csv);
-
-                List<string> languages = CsvParser.GetLanguages(rows[0]);
-
-                CsvParser.GetValues(languages, rows, out List<string> keys, out List<string> comments, out Dictionary<string, List<string>> values);
-
-                WriteGeneratedKeysClass(master.DefaultNamespace, sheetAsset, keys);
+                WriteGeneratedKeysClass(master.DefaultNamespace, master.SheetAssets[i], sheets[i].Keys);
             }
         }
 
         private static void WriteGeneratedKeysClass(string defaultNamespace, LocalisationSheetAsset asset, List<string> keys)
         {
             string outFolder = asset.GeneratedOutputFolder;
+
             if (string.IsNullOrEmpty(outFolder))
             {
                 outFolder = Path.Combine(Application.dataPath, "GeneralisedLocalisation");
@@ -168,26 +283,29 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
             }
 
             string namespaceToUse = string.IsNullOrEmpty(asset.NamespaceOverride) ? defaultNamespace : asset.NamespaceOverride;
+            string sheetName      = asset.SheetName;
 
-            string             path = Path.Combine(outFolder, $"{asset.SheetName}.cs");
+            string             path = Path.Combine(outFolder, $"{sheetName}.cs");
             using StreamWriter sw   = new StreamWriter(path, false, Encoding.UTF8);
 
             sw.WriteLine($"namespace {namespaceToUse}");
             sw.WriteLine("{");
-            sw.WriteLine($"\t// Auto generated keys for sheet: {asset.SheetName}");
+            sw.WriteLine($"\t// Auto generated keys for sheet: {sheetName}");
             sw.WriteLine("\tpublic static partial class LocalisationKeys");
             sw.WriteLine("\t{");
-            sw.WriteLine($"\t\tpublic static class {asset.SheetName}");
+            sw.WriteLine($"\t\tpublic static class {sheetName}");
             sw.WriteLine("\t\t{");
 
-            sw.WriteLine($"\t\t\t///<summary>{asset.SheetName}</summary>");
-            sw.WriteLine($"\t\t\tpublic const string SHEET_NAME = @\"{asset.SheetName}\";");
+            sw.WriteLine($"\t\t\t///<summary>{EscapeXmlDoc(sheetName)}</summary>");
+            sw.WriteLine($"\t\t\tpublic const string SHEET_NAME = @\"{EscapeVerbatim(sheetName)}\";");
 
             foreach (string key in keys)
             {
-                string id = SanitiseIdentifier(key);
-                sw.WriteLine($"\t\t\t///<summary>{key}</summary>");
-                sw.WriteLine($"\t\t\tpublic const string {id} = @\"{asset.SheetName}/{key}\";");
+                string id           = SanitiseIdentifier(key);
+                string qualifiedKey = $"{sheetName}{LocalisationBinaryBuilder.KEY_SEPARATOR}{key}";
+
+                sw.WriteLine($"\t\t\t///<summary>{EscapeXmlDoc(key)}</summary>");
+                sw.WriteLine($"\t\t\tpublic const string {id} = @\"{EscapeVerbatim(qualifiedKey)}\";");
             }
 
             sw.WriteLine("\t\t}");
@@ -195,6 +313,54 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
             sw.WriteLine("}");
 
             Debug.Log($"{nameof(LocalisationWriter)}::{nameof(WriteGeneratedKeysClass)} Generated keys class at {path}");
+        }
+
+        private static string EscapeVerbatim(string value)
+        {
+            return value.Replace("\"", "\"\"");
+        }
+
+        private static string EscapeXmlDoc(string value)
+        {
+            return value.Replace("&", "&amp;")
+                        .Replace("<", "&lt;")
+                        .Replace(">", "&gt;");
+        }
+
+        private static bool IsValidIdentifier(string value)
+        {
+            if (string.IsNullOrEmpty(value) || !(char.IsLetter(value[0]) || value[0] == '_'))
+            {
+                return false;
+            }
+
+            for (int i = 1; i < value.Length; i++)
+            {
+                if (!char.IsLetterOrDigit(value[i]) && value[i] != '_')
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool IsValidNamespace(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return false;
+            }
+
+            foreach (string part in value.Split('.'))
+            {
+                if (!IsValidIdentifier(part))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private static string SanitiseIdentifier(string key)
@@ -206,50 +372,67 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
 
             string[] parts = key.Split(new[]
                                        {
-                                               '.',
-                                               '/',
-                                               ' ',
-                                               '-'
+                                           '.',
+                                           '/',
+                                           ' ',
+                                           '-'
                                        },
                                        StringSplitOptions.RemoveEmptyEntries);
 
-            string outName = string.Empty;
+            StringBuilder outName = new StringBuilder();
+
             for (int i = 0; i < parts.Length; i++)
             {
-                string p = parts[i];
-                p = Regex.Replace(p, "[^A-Za-z0-9_]", "");
+                string p = KeepIdentifierChars(parts[i]);
 
-                if (string.IsNullOrEmpty(p))
+                if (p.Length == 0)
                 {
                     continue;
                 }
 
-                if (i == 0)
+                if (outName.Length > 0)
                 {
-                    outName += p.ToUpperInvariant();
+                    outName.Append('_');
                 }
-                else
-                {
-                    outName += "_" + p.ToUpperInvariant();
-                }
+
+                outName.Append(p.ToUpperInvariant());
             }
 
-            if (string.IsNullOrEmpty(outName))
+            if (outName.Length == 0)
             {
-                outName = "KEY";
+                return "KEY";
             }
 
             if (!char.IsLetter(outName[0]))
             {
-                outName = "_" + outName;
+                outName.Insert(0, '_');
             }
 
-            return outName;
+            string identifier = outName.ToString();
+
+            return identifier;
         }
 
-        private static void UpdateProgress(string message, float progress)
+        private static string KeepIdentifierChars(string value)
         {
-            EditorUtility.DisplayProgressBar("Localisation Writer", message, progress);
+            StringBuilder builder = new StringBuilder(value.Length);
+
+            foreach (char c in value)
+            {
+                if (char.IsLetterOrDigit(c) && c < 128 || c == '_')
+                {
+                    builder.Append(c);
+                }
+            }
+
+            return builder.ToString();
+        }
+
+        private static bool UpdateProgress(string message, float progress)
+        {
+            bool cancelled = EditorUtility.DisplayCancelableProgressBar("Localisation Writer", message, progress);
+
+            return cancelled;
         }
     }
 }

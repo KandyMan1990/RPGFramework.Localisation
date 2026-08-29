@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
 
 namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
@@ -10,6 +10,11 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
     {
         internal static List<string[]> ParseCsv(string csv)
         {
+            if (string.IsNullOrEmpty(csv))
+            {
+                throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(ParseCsv)} CSV is empty");
+            }
+
             List<string[]> rows       = new List<string[]>();
             List<string>   currentRow = new List<string>();
             bool           inQuotes   = false;
@@ -55,6 +60,11 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
                 }
             }
 
+            if (inQuotes)
+            {
+                throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(ParseCsv)} CSV ends inside a quoted cell — a '\"' is unclosed on or after row [{rows.Count + 1}]");
+            }
+
             if (cell.Length > 0 || currentRow.Count > 0)
             {
                 currentRow.Add(cell.ToString());
@@ -69,6 +79,10 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
             return rows;
         }
 
+        /// <summary>
+        /// Reads the language codes from the header row. Columns A and B are the key and its comment; languages
+        /// start at column C. Whatever a sheet declares is what the game ships.
+        /// </summary>
         internal static List<string> GetLanguages(string[] header)
         {
             if (header.Length <= 2)
@@ -76,7 +90,9 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
                 throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(GetLanguages)} Need language headers starting at column C");
             }
 
-            List<string> languages = new List<string>();
+            List<string>    languages = new List<string>();
+            HashSet<string> seen      = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
             for (int i = 2; i < header.Length; i++)
             {
                 string code = header[i].Trim();
@@ -86,7 +102,12 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
                     throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(GetLanguages)} Header {i} is empty");
                 }
 
-                if (!IsValidCulture(code, out CultureInfo _))
+                if (!seen.Add(code))
+                {
+                    throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(GetLanguages)} Language column [{code}] appears more than once in the header");
+                }
+
+                if (!IsWellFormedCulture(code))
                 {
                     throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(GetLanguages)} Language code [{code}] is not valid.  Use a format like 'en-GB' or 'fr-FR'");
                 }
@@ -101,7 +122,12 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
         {
             keys          = new List<string>();
             comments      = new List<string>();
-            perLangValues = languages.ToDictionary(l => l, _ => new List<string>());
+            perLangValues = new Dictionary<string, List<string>>(languages.Count, StringComparer.Ordinal);
+
+            foreach (string language in languages)
+            {
+                perLangValues.Add(language, new List<string>());
+            }
 
             for (int i = 1; i < rows.Count; i++)
             {
@@ -112,7 +138,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
                     continue;
                 }
 
-                string key     = row.Length >= 1 ? row[0].Trim() : null;
+                string key     = row[0].Trim();
                 string comment = row.Length >= 2 ? row[1].Trim() : string.Empty;
 
                 if (string.IsNullOrEmpty(key))
@@ -138,19 +164,16 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
             }
         }
 
-        private static bool IsValidCulture(string code, out CultureInfo culture)
+        private static bool IsWellFormedCulture(string code)
         {
             try
             {
-                culture = CultureInfo.GetCultureInfo(code);
+                CultureInfo culture = CultureInfo.GetCultureInfo(code);
 
-                return true;
-
+                return !string.IsNullOrEmpty(culture.Name) && string.Equals(culture.Name, code, StringComparison.OrdinalIgnoreCase);
             }
-            catch
+            catch (CultureNotFoundException)
             {
-                culture = null;
-
                 return false;
             }
         }

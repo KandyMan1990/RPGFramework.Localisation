@@ -30,7 +30,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
 
                     List<string>            values   = data.Values[language];
                     string                  filePath = Path.Combine(folderPath, $"{data.SheetName}.locbin");
-                    LocalisationSheetBinary bin      = LocalisationBinaryBuilder.BuildBinary(data.Keys, values);
+                    LocalisationSheetBinary bin      = LocalisationBinaryBuilder.BuildBinary(data.SheetName, data.Keys, values);
 
                     WriteLocBin(language, filePath, bin);
 

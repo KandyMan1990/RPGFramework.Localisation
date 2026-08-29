@@ -11,6 +11,8 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
     {
         private const byte VERSION = 2;
 
+        private const int TOC_ENTRY_SIZE = sizeof(ulong) + sizeof(uint) + sizeof(uint);
+
         private readonly ILocalisationBinLoader m_LocalisationBinLoader;
 
         private Dictionary<ulong, SheetData> m_TableOfContents;
@@ -18,7 +20,6 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
 
         internal LocalisationBinLoader_Version02()
         {
-            m_TableOfContents       = new Dictionary<ulong, SheetData>();
             m_LocalisationBinLoader = this;
         }
 
@@ -38,48 +39,60 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
             using MemoryStream stream = new MemoryStream(bytes);
             using BinaryReader reader = new BinaryReader(stream);
 
-            if (m_LoadedLanguage != language)
-            {
-                m_LoadedLanguage = language;
-                m_TableOfContents.Clear();
-                m_TableOfContents = null;
+            Dictionary<ulong, SheetData> tableOfContents = m_TableOfContents;
 
+            if (m_LoadedLanguage != language || tableOfContents == null)
+            {
                 LocalisationBinReader.ValidateHeader(reader, language, neutral, VERSION);
+
+                tableOfContents = ReadTableOfContents(reader);
+
+                m_TableOfContents = tableOfContents;
+                m_LoadedLanguage  = language;
             }
 
-            LocalisationData[] data = ReadData(reader, sheetNames);
+            LocalisationData[] data = ReadData(reader, tableOfContents, sheetNames);
 
             return data;
         }
 
-        private LocalisationData[] ReadData(BinaryReader binaryReader, string[] sheetNames)
+        private static Dictionary<ulong, SheetData> ReadTableOfContents(BinaryReader binaryReader)
         {
-            ulong[] sheetHashes = new ulong[sheetNames.Length];
-            for (int i = 0; i < sheetHashes.Length; i++)
+            Stream stream     = binaryReader.BaseStream;
+            uint   sheetCount = binaryReader.ReadUInt32();
+            long   maxSheets  = (stream.Length - stream.Position) / TOC_ENTRY_SIZE;
+
+            if (sheetCount > maxSheets)
             {
-                sheetHashes[i] = Fnv1a64.Hash(sheetNames[i]);
+                throw new InvalidDataException($"{nameof(LocalisationBinLoader_Version02)}::{nameof(ReadTableOfContents)} Sheet count [{sheetCount}] exceeds the [{maxSheets}] the remaining {stream.Length - stream.Position} bytes can hold");
             }
 
-            if (m_TableOfContents == null)
+            Dictionary<ulong, SheetData> tableOfContents = new Dictionary<ulong, SheetData>((int)sheetCount);
+
+            for (int i = 0; i < sheetCount; i++)
             {
-                uint sheetCount = binaryReader.ReadUInt32();
-                m_TableOfContents = new Dictionary<ulong, SheetData>((int)sheetCount);
+                ulong sheetHash          = binaryReader.ReadUInt64();
+                uint  sheetStartPosition = binaryReader.ReadUInt32();
+                uint  sheetLength        = binaryReader.ReadUInt32();
 
-                for (int i = 0; i < sheetCount; i++)
+                if (!tableOfContents.TryAdd(sheetHash, new SheetData(sheetStartPosition, sheetLength)))
                 {
-                    ulong sheetHash          = binaryReader.ReadUInt64();
-                    uint  sheetStartPosition = binaryReader.ReadUInt32();
-                    uint  sheetLength        = binaryReader.ReadUInt32();
-
-                    m_TableOfContents.Add(sheetHash, new SheetData(sheetStartPosition, sheetLength));
+                    throw new InvalidDataException($"{nameof(LocalisationBinLoader_Version02)}::{nameof(ReadTableOfContents)} Duplicate sheet hash [{sheetHash}] in the table of contents");
                 }
             }
 
-            LocalisationData[] data = new LocalisationData[sheetHashes.Length];
+            return tableOfContents;
+        }
 
-            for (int i = 0; i < sheetHashes.Length; i++)
+        private static LocalisationData[] ReadData(BinaryReader binaryReader, Dictionary<ulong, SheetData> tableOfContents, string[] sheetNames)
+        {
+            LocalisationData[] data = new LocalisationData[sheetNames.Length];
+
+            for (int i = 0; i < sheetNames.Length; i++)
             {
-                if (!m_TableOfContents.TryGetValue(sheetHashes[i], out SheetData sheetData))
+                ulong sheetHash = Fnv1a64.Hash(sheetNames[i]);
+
+                if (!tableOfContents.TryGetValue(sheetHash, out SheetData sheetData))
                 {
                     throw new KeyNotFoundException($"{nameof(LocalisationBinLoader_Version02)}::{nameof(ReadData)} Hash key not found for sheet [{sheetNames[i]}]");
                 }
@@ -95,7 +108,7 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
             internal readonly uint StartPosition;
             internal readonly uint Length;
 
-            public SheetData(uint sheetStartPosition, uint sheetLength)
+            internal SheetData(uint sheetStartPosition, uint sheetLength)
             {
                 StartPosition = sheetStartPosition;
                 Length        = sheetLength;

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -7,6 +8,8 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
 {
     internal static class GoogleSheetDataProvider
     {
+        private const int REQUEST_TIMEOUT_SECONDS = 30;
+
         internal static async Task<string> GetCsv(LocalisationMaster master, LocalisationSheetAsset sheetAsset)
         {
             string csvUrl = BuildCsvUrl(master.SheetId, sheetAsset.Gid);
@@ -59,14 +62,25 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinWriter
         {
             using UnityWebRequest req = UnityWebRequest.Get(url);
 
+            req.timeout = REQUEST_TIMEOUT_SECONDS;
+
             await req.SendWebRequest();
-            if (req.result == UnityWebRequest.Result.ConnectionError || req.result == UnityWebRequest.Result.ProtocolError)
+
+            if (req.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError($"{nameof(GoogleSheetDataProvider)}::{nameof(FetchCsvSync)} Fetch error: {req.error}");
-                return null;
+                throw new IOException($"{nameof(GoogleSheetDataProvider)}::{nameof(FetchCsvSync)} Status [{req.result}] code [{req.responseCode}] error [{req.error}] requesting [{url}]. A sheet must be shared as \"anyone with the link can view\" for CSV export to work");
             }
 
-            return req.downloadHandler.text;
+            string text = req.downloadHandler.text;
+
+            // A sheet that is not link-shared answers 200 with a Google sign-in page rather than CSV, which
+            // otherwise fails much later as a confusing "language code is not valid" parse error.
+            if (text != null && text.TrimStart().StartsWith("<", StringComparison.Ordinal))
+            {
+                throw new IOException($"{nameof(GoogleSheetDataProvider)}::{nameof(FetchCsvSync)} [{url}] returned HTML, not CSV. The sheet is probably not shared as \"anyone with the link can view\"");
+            }
+
+            return text;
         }
     }
 }
