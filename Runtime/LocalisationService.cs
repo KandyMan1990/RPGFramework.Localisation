@@ -105,6 +105,11 @@ namespace RPGFramework.Localisation
             return fallback;
         }
 
+        Task ILocalisationService.InitialiseAsync()
+        {
+            return EnsureManifestAsync();
+        }
+
         async Task ILocalisationService.SetCurrentLanguage(string language)
         {
             if (language == m_CurrentLanguage)

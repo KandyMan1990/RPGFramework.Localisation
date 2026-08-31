@@ -13,6 +13,7 @@ namespace RPGFramework.Localisation
     {
         event Action<string> OnLanguageChanged;
         string               CurrentLanguage { get; }
+        Task                 InitialiseAsync();
         Task                 SetCurrentLanguage(string language);
         Task<string[]>       GetAllLanguages();
         Task                 LoadNewLocalisationDataAsync(string   sheetName);
