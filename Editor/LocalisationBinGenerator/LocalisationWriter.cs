@@ -140,6 +140,47 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
             }
 
             ValidateLanguageConsistency(master, sheets);
+            ValidateText(sheets);
+        }
+
+        /// <summary>
+        /// Run every <see cref="ILocalisationTextValidator" /> in the project over every value, and refuse to write
+        /// anything if one finds a problem.
+        /// </summary>
+        private static void ValidateText(List<LocalisationSheetContent> sheets)
+        {
+            List<ILocalisationTextValidator> validators = new List<ILocalisationTextValidator>();
+
+            foreach (Type type in TypeCache.GetTypesDerivedFrom<ILocalisationTextValidator>())
+            {
+                if (!type.IsAbstract)
+                {
+                    validators.Add((ILocalisationTextValidator)Activator.CreateInstance(type));
+                }
+            }
+
+            List<string> problems = new List<string>();
+
+            foreach (LocalisationSheetContent sheet in sheets)
+            {
+                foreach (string language in sheet.Languages)
+                {
+                    List<string> values = sheet.Values[language];
+
+                    for (int i = 0; i < values.Count; i++)
+                    {
+                        foreach (ILocalisationTextValidator validator in validators)
+                        {
+                            validator.Validate(sheet.SheetName, language, sheet.Keys[i], values[i] ?? string.Empty, problems);
+                        }
+                    }
+                }
+            }
+
+            if (problems.Count > 0)
+            {
+                throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateText)} {problems.Count} problem(s) in the sheets' text. Nothing was written.\n{string.Join("\n", problems)}");
+            }
         }
 
         private static void ValidateLanguageConsistency(LocalisationMaster master, List<LocalisationSheetContent> sheets)
