@@ -2,14 +2,14 @@ using UnityEngine;
 
 namespace RPGFramework.Localisation.Editor
 {
-    public enum LocalisationVersion
+    internal enum LocalisationVersion
     {
         FilePerSheet    = 1,
         FilePerLanguage = 2
     }
 
     [CreateAssetMenu(menuName = "RPG Framework/Localisation/Master", fileName = "LocalisationMaster")]
-    public class LocalisationMaster : ScriptableObject
+    internal class LocalisationMaster : ScriptableObject
     {
         [Tooltip("GoogleSheet ID")]
         public string SheetId;
