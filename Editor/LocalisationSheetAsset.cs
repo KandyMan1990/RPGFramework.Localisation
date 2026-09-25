@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace RPGFramework.Localisation.Editor
@@ -18,5 +19,13 @@ namespace RPGFramework.Localisation.Editor
 
         [Tooltip("An override for the default namespace, leave this blank to use the value in master")]
         public string NamespaceOverride = string.Empty;
+
+        [SerializeField]
+        [HideInInspector]
+        private List<string> m_Keys = new List<string>();
+
+        public IReadOnlyList<string> Keys => m_Keys;
+
+        internal void SetKeys(List<string> keys) => m_Keys = keys;
     }
 }

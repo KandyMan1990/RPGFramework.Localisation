@@ -50,6 +50,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
                 UpdateProgress("Generating localisation keys class file(s)...", 0.85f);
 
                 WriteKeysToClassFiles(master, sheets);
+                RecordKeysOnSheets(master, sheets);
 
                 Debug.Log($"{nameof(LocalisationWriter)}::{nameof(WriteAsync)} {master.name} file and class generation complete");
             }
@@ -319,6 +320,24 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
             for (int i = 0; i < sheets.Count; i++)
             {
                 WriteGeneratedKeysClass(master.DefaultNamespace, master.SheetAssets[i], sheets[i].Keys);
+            }
+        }
+
+        private static void RecordKeysOnSheets(LocalisationMaster master, List<LocalisationSheetContent> sheets)
+        {
+            for (int i = 0; i < sheets.Count; i++)
+            {
+                LocalisationSheetAsset asset = master.SheetAssets[i];
+                List<string>           keys  = new List<string>(sheets[i].Keys.Count);
+
+                foreach (string key in sheets[i].Keys)
+                {
+                    keys.Add($"{asset.SheetName}{LocalisationBinaryBuilder.KEY_SEPARATOR}{key}");
+                }
+
+                asset.SetKeys(keys);
+                EditorUtility.SetDirty(asset);
+                AssetDatabase.SaveAssetIfDirty(asset);
             }
         }
 
