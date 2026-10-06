@@ -3,21 +3,16 @@ using UnityEngine;
 
 namespace RPGFramework.Localisation.Editor
 {
-    [CreateAssetMenu(menuName = "RPG Framework/Localisation/Localisation Sheet", fileName = "LocalisationSheet")]
     public class LocalisationSheetAsset : ScriptableObject
     {
-        [Header("Sheet")]
-        [Tooltip("Tab name inside the Google Sheet")]
-        public string SheetName;
-
-        [Tooltip("gid for the sheet tab")]
+        [Header("Keys class")]
+        [Tooltip("Generate a C# class holding this sheet's keys as constants, for code that names them. Scripts and the editors read the keys recorded on this asset, and need no class")]
         [SerializeField]
-        internal string Gid;
+        internal bool GenerateKeysClass;
 
-        [Header("Generation")]
-        [Tooltip("Where to drop the generated C# keys file (example: Assets/GeneratedLocalisation/<SheetName>)")]
+        [Tooltip("The folder this sheet's generated keys class, a C# script, goes in. Leave this blank to use the folder in master")]
         [SerializeField]
-        internal string GeneratedOutputFolder = "Assets/GeneratedLocalisation";
+        internal string KeysClassFolderOverride = string.Empty;
 
         [Tooltip("An override for the default namespace, leave this blank to use the value in master")]
         [SerializeField]
@@ -26,6 +21,9 @@ namespace RPGFramework.Localisation.Editor
         [SerializeField]
         [HideInInspector]
         private List<string> m_Keys = new List<string>();
+
+        /// <summary>The tab's name in the spreadsheet, which the pull names the asset after.</summary>
+        public string SheetName => name;
 
         public IReadOnlyList<string> Keys => m_Keys;
 

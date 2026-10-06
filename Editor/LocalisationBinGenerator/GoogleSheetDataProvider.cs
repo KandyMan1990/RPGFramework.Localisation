@@ -10,35 +10,45 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
     {
         private const int REQUEST_TIMEOUT_SECONDS = 30;
 
-        internal static async Task<string> GetCsv(LocalisationMaster master, LocalisationSheetAsset sheetAsset)
+        /// <summary>
+        /// The whole spreadsheet, every tab, as one .xlsx file. The export is anonymous, so the spreadsheet must be
+        /// shared as "anyone with the link can view".
+        /// </summary>
+        internal static async Task<byte[]> GetWorkbookAsync(string sheetId)
         {
-            string csvUrl = BuildCsvUrl(master.SheetId, sheetAsset.Gid);
-            if (string.IsNullOrEmpty(csvUrl))
+            string url = $"https://docs.google.com/spreadsheets/d/{GetSpreadsheetId(sheetId)}/export?format=xlsx";
+
+            using UnityWebRequest req = UnityWebRequest.Get(url);
+
+            req.timeout = REQUEST_TIMEOUT_SECONDS;
+
+            await req.SendWebRequest();
+
+            if (req.result != UnityWebRequest.Result.Success)
             {
-                throw new Exception($"{nameof(GoogleSheetDataProvider)}::{nameof(GetCsv)} Could not build CSV URL");
+                throw new IOException($"{nameof(GoogleSheetDataProvider)}::{nameof(GetWorkbookAsync)} Status [{req.result}] code [{req.responseCode}] error [{req.error}] requesting [{url}]. A spreadsheet must be shared as \"anyone with the link can view\" for its export to work");
             }
 
-            string csv = await FetchCsvSync(csvUrl);
-            if (string.IsNullOrEmpty(csv))
+            byte[] workbook = req.downloadHandler.data;
+
+            // A spreadsheet that is not link-shared answers 200 with a Google sign-in page, where an .xlsx file is a zip.
+            if (workbook == null || workbook.Length < 2 || workbook[0] != 'P' || workbook[1] != 'K')
             {
-                throw new Exception($"{nameof(GoogleSheetDataProvider)}::{nameof(GetCsv)} Failed to fetch CSV");
+                throw new IOException($"{nameof(GoogleSheetDataProvider)}::{nameof(GetWorkbookAsync)} [{url}] did not return an .xlsx file. The spreadsheet is probably not shared as \"anyone with the link can view\"");
             }
 
-            return csv;
+            return workbook;
         }
 
-        private static string BuildCsvUrl(string masterSheetId, string gid)
+        /// <summary>The spreadsheet's id, from either the id itself or a link to the spreadsheet.</summary>
+        private static string GetSpreadsheetId(string sheetId)
         {
-            string id = masterSheetId;
-            if (string.IsNullOrEmpty(id))
+            if (string.IsNullOrEmpty(sheetId))
             {
-                throw new ArgumentException($"{nameof(GoogleSheetDataProvider)}::{nameof(BuildCsvUrl)} Sheet id is null or empty");
+                throw new ArgumentException($"{nameof(GoogleSheetDataProvider)}::{nameof(GetSpreadsheetId)} Sheet id is null or empty");
             }
 
-            if (string.IsNullOrEmpty(gid))
-            {
-                throw new ArgumentException($"{nameof(GoogleSheetDataProvider)}::{nameof(BuildCsvUrl)} Gid is null or empty");
-            }
+            string id = sheetId;
 
             if (id.Contains("docs.google.com"))
             {
@@ -53,34 +63,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
                 }
             }
 
-            string csvUrl = $"https://docs.google.com/spreadsheets/d/{id}/export?format=csv&gid={gid}";
-
-            return csvUrl;
-        }
-
-        private static async Task<string> FetchCsvSync(string url)
-        {
-            using UnityWebRequest req = UnityWebRequest.Get(url);
-
-            req.timeout = REQUEST_TIMEOUT_SECONDS;
-
-            await req.SendWebRequest();
-
-            if (req.result != UnityWebRequest.Result.Success)
-            {
-                throw new IOException($"{nameof(GoogleSheetDataProvider)}::{nameof(FetchCsvSync)} Status [{req.result}] code [{req.responseCode}] error [{req.error}] requesting [{url}]. A sheet must be shared as \"anyone with the link can view\" for CSV export to work");
-            }
-
-            string text = req.downloadHandler.text;
-
-            // A sheet that is not link-shared answers 200 with a Google sign-in page rather than CSV, which
-            // otherwise fails much later as a confusing "language code is not valid" parse error.
-            if (text != null && text.TrimStart().StartsWith("<", StringComparison.Ordinal))
-            {
-                throw new IOException($"{nameof(GoogleSheetDataProvider)}::{nameof(FetchCsvSync)} [{url}] returned HTML, not CSV. The sheet is probably not shared as \"anyone with the link can view\"");
-            }
-
-            return text;
+            return id;
         }
     }
 }

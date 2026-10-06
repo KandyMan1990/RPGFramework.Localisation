@@ -2,81 +2,58 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Text;
 
 namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
-    internal static class CsvParser
+    internal static class SheetParser
     {
-        internal static List<string[]> ParseCsv(string csv)
+        /// <summary>
+        /// A tab whose name starts with this is not a sheet — notes, a glossary — and is skipped. It cannot begin a C#
+        /// identifier, so no sheet can be mistaken for one.
+        /// </summary>
+        internal const string SKIPPED_TAB_PREFIX = "#";
+
+        /// <summary>
+        /// The tabs that are sheets, read into keys and each language's values. Every tab but a skipped one must parse.
+        /// </summary>
+        internal static List<LocalisationSheetContent> ReadSheets(List<SpreadsheetTab> tabs)
         {
-            if (string.IsNullOrEmpty(csv))
+            List<LocalisationSheetContent> sheets = new List<LocalisationSheetContent>(tabs.Count);
+
+            for (int i = 0; i < tabs.Count; i++)
             {
-                throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(ParseCsv)} CSV is empty");
-            }
+                SpreadsheetTab tab = tabs[i];
 
-            List<string[]> rows       = new List<string[]>();
-            List<string>   currentRow = new List<string>();
-            bool           inQuotes   = false;
-            StringBuilder  cell       = new StringBuilder();
-
-            for (int i = 0; i < csv.Length; i++)
-            {
-                char c = csv[i];
-
-                if (c == '"')
+                if (tab.Name.StartsWith(SKIPPED_TAB_PREFIX, StringComparison.Ordinal))
                 {
-                    if (inQuotes && i + 1 < csv.Length && csv[i + 1] == '"')
-                    {
-                        cell.Append('"');
-                        i++;
-                    }
-                    else
-                    {
-                        inQuotes = !inQuotes;
-                    }
+                    continue;
                 }
-                else if (c == ',' && !inQuotes)
+
+                try
                 {
-                    currentRow.Add(cell.ToString());
-                    cell.Clear();
-                }
-                else if ((c == '\n' || c == '\r') && !inQuotes)
-                {
-                    if (c == '\r' && i + 1 < csv.Length && csv[i + 1] == '\n')
+                    if (tab.Rows.Count == 0)
                     {
-                        i++;
+                        throw new InvalidDataException("It is empty");
                     }
 
-                    currentRow.Add(cell.ToString());
-                    cell.Clear();
+                    List<string> languages = GetLanguages(tab.Rows[0]);
 
-                    rows.Add(currentRow.ToArray());
-                    currentRow = new List<string>();
+                    GetValues(languages, tab.Rows, out List<string> keys, out List<string> _, out Dictionary<string, List<string>> values);
+
+                    sheets.Add(new LocalisationSheetContent(tab.Name, languages, keys, values));
                 }
-                else
+                catch (InvalidDataException e)
                 {
-                    cell.Append(c);
+                    throw new InvalidDataException($"{nameof(SheetParser)}::{nameof(ReadSheets)} Tab [{tab.Name}] does not read as a sheet: {e.Message}. Start its name with '{SKIPPED_TAB_PREFIX}' if it is not one", e);
                 }
             }
 
-            if (inQuotes)
+            if (sheets.Count == 0)
             {
-                throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(ParseCsv)} CSV ends inside a quoted cell — a '\"' is unclosed on or after row [{rows.Count + 1}]");
+                throw new InvalidDataException($"{nameof(SheetParser)}::{nameof(ReadSheets)} The spreadsheet has no sheets: every tab's name starts with '{SKIPPED_TAB_PREFIX}'");
             }
 
-            if (cell.Length > 0 || currentRow.Count > 0)
-            {
-                currentRow.Add(cell.ToString());
-                rows.Add(currentRow.ToArray());
-            }
-
-            if (rows.Count < 1)
-            {
-                throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(ParseCsv)} CSV could not be parsed");
-            }
-
-            return rows;
+            return sheets;
         }
 
         /// <summary>
@@ -87,7 +64,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
         {
             if (header.Length <= 2)
             {
-                throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(GetLanguages)} Need language headers starting at column C");
+                throw new InvalidDataException($"{nameof(SheetParser)}::{nameof(GetLanguages)} Need language headers starting at column C");
             }
 
             List<string>    languages = new List<string>();
@@ -99,17 +76,17 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
                 if (string.IsNullOrEmpty(code))
                 {
-                    throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(GetLanguages)} Header {i} is empty");
+                    throw new InvalidDataException($"{nameof(SheetParser)}::{nameof(GetLanguages)} Header {i} is empty");
                 }
 
                 if (!seen.Add(code))
                 {
-                    throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(GetLanguages)} Language column [{code}] appears more than once in the header");
+                    throw new InvalidDataException($"{nameof(SheetParser)}::{nameof(GetLanguages)} Language column [{code}] appears more than once in the header");
                 }
 
                 if (!IsWellFormedCulture(code))
                 {
-                    throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(GetLanguages)} Language code [{code}] is not valid.  Use a format like 'en-GB' or 'fr-FR'");
+                    throw new InvalidDataException($"{nameof(SheetParser)}::{nameof(GetLanguages)} Language code [{code}] is not valid.  Use a format like 'en-GB' or 'fr-FR'");
                 }
 
                 languages.Add(code);
@@ -160,7 +137,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
             if (keys.Count == 0)
             {
-                throw new InvalidDataException($"{nameof(CsvParser)}::{nameof(GetValues)} No keys found");
+                throw new InvalidDataException($"{nameof(SheetParser)}::{nameof(GetValues)} No keys found");
             }
         }
 

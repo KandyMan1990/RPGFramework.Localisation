@@ -10,47 +10,107 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
     internal static class LocalisationWriter
     {
-        internal static async Task WriteAsync(LocalisationMaster master)
+        private const string SHEETS_FOLDER = "Sheets";
+        private const string PULL_FOLDER   = "Library/RPGFramework.Localisation";
+
+        // Written into every generated keys class, so only a class this writer made is ever deleted.
+        private const string KEYS_CLASS_MARKER = "// Auto generated keys for sheet: ";
+
+        /// <summary>
+        /// Downloads every tab of the master's spreadsheet and brings the sheet assets in line with them: each tab is
+        /// matched to the sheet asset named after it — updated in place, since other assets reference it — or given a new
+        /// one in the Sheets folder beside the master, and its keys are recorded on it. The download is kept in Library,
+        /// unversioned, for <see cref="Generate" /> to build from.
+        /// </summary>
+        internal static async Task PullAsync(LocalisationMaster master)
         {
             if (master == null)
             {
-                throw new ArgumentException($"{nameof(LocalisationWriter)}::{nameof(WriteAsync)} Master is null");
+                throw new ArgumentException($"{nameof(LocalisationWriter)}::{nameof(PullAsync)} Master is null");
             }
 
-            if (master.SheetAssets == null || master.SheetAssets.Length == 0)
+            List<LocalisationSheetAsset> gone;
+
+            try
             {
-                throw new ArgumentException($"{nameof(LocalisationWriter)}::{nameof(WriteAsync)} Master has no sheets");
+                UpdateProgress("Fetching the spreadsheet...", 0f);
+
+                byte[] workbook = await GoogleSheetDataProvider.GetWorkbookAsync(master.SheetId);
+
+                if (UpdateProgress("Reading the sheets...", 0.5f))
+                {
+                    throw new OperationCanceledException($"{nameof(LocalisationWriter)}::{nameof(PullAsync)} Cancelled after fetching the spreadsheet. Nothing was changed");
+                }
+
+                List<LocalisationSheetContent> sheets = SheetParser.ReadSheets(XlsxReader.Read(workbook));
+                LocalisationSheetAsset[]       assets = FindSheetAssets(master, sheets, out gone);
+
+                ValidateSheetNames(sheets);
+
+                UpdateProgress("Updating the sheet assets...", 0.75f);
+
+                PlaceSheetAssets(master, sheets, assets);
+                RecordKeysOnSheets(master, sheets);
+                SavePull(master, workbook);
+
+                Debug.Log($"{nameof(LocalisationWriter)}::{nameof(PullAsync)} {master.name} pulled [{sheets.Count}] sheet(s)");
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
+
+            OfferToDeleteGoneSheets(master, gone);
+        }
+
+        /// <summary>
+        /// Builds the .locbin files, the manifest and the keys classes from the last pull, with no network. Nothing is
+        /// written unless every sheet passes.
+        /// </summary>
+        internal static void Generate(LocalisationMaster master)
+        {
+            if (master == null)
+            {
+                throw new ArgumentException($"{nameof(LocalisationWriter)}::{nameof(Generate)} Master is null");
             }
 
             if (!Enum.IsDefined(typeof(LocalisationVersion), master.Version))
             {
-                throw new ArgumentException($"{nameof(LocalisationWriter)}::{nameof(WriteAsync)} Master [{master.name}] has an unset or unknown format version [{(int)master.Version}]. Choose one of: {string.Join(", ", Enum.GetNames(typeof(LocalisationVersion)))}");
+                throw new ArgumentException($"{nameof(LocalisationWriter)}::{nameof(Generate)} Master [{master.name}] has an unset or unknown format version [{(int)master.Version}]. Choose one of: {string.Join(", ", Enum.GetNames(typeof(LocalisationVersion)))}");
+            }
+
+            string pulled = GetPullPath(master);
+
+            if (!File.Exists(pulled))
+            {
+                throw new FileNotFoundException($"{nameof(LocalisationWriter)}::{nameof(Generate)} Nothing has been pulled for [{master.name}] on this machine. Pull first");
             }
 
             try
             {
-                UpdateProgress("Fetching localisation content...", 0f);
+                UpdateProgress("Reading the last pull...", 0f);
 
-                List<LocalisationSheetContent> sheets = await FetchAllSheetsAsync(master);
+                List<LocalisationSheetContent> sheets = SheetParser.ReadSheets(XlsxReader.Read(File.ReadAllBytes(pulled)));
+                LocalisationSheetAsset[]       assets = GetPulledSheetAssets(master, sheets);
 
-                UpdateProgress("Validating localisation content...", 0.5f);
+                UpdateProgress("Validating localisation content...", 0.2f);
 
-                ValidateSheets(master, sheets);
+                ValidateSheetNames(sheets);
+                ValidateSheets(master, sheets, assets);
 
-                UpdateProgress("Writing localisation bin file(s)...", 0.6f);
+                UpdateProgress("Writing localisation bin file(s)...", 0.4f);
 
                 WriteLocalisationBin(master, sheets);
 
-                UpdateProgress("Writing localisation manifest file...", 0.75f);
+                UpdateProgress("Writing localisation manifest file...", 0.7f);
 
                 WriteLocalisationManifest(master, sheets);
 
                 UpdateProgress("Generating localisation keys class file(s)...", 0.85f);
 
                 WriteKeysToClassFiles(master, sheets);
-                RecordKeysOnSheets(master, sheets);
 
-                Debug.Log($"{nameof(LocalisationWriter)}::{nameof(WriteAsync)} {master.name} file and class generation complete");
+                Debug.Log($"{nameof(LocalisationWriter)}::{nameof(Generate)} {master.name} file and class generation complete");
             }
             finally
             {
@@ -79,63 +139,273 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
             return ms.ToArray();
         }
 
-        private static async Task<List<LocalisationSheetContent>> FetchAllSheetsAsync(LocalisationMaster master)
+        /// <returns>
+        /// Each sheet's asset, in the sheets' order, or null where a sheet has none yet. The candidates are the master's
+        /// list and the Sheets folder; <paramref name="gone" /> is those no tab matched.
+        /// </returns>
+        private static LocalisationSheetAsset[] FindSheetAssets(LocalisationMaster master, List<LocalisationSheetContent> sheets, out List<LocalisationSheetAsset> gone)
         {
-            List<LocalisationSheetContent> sheets = new List<LocalisationSheetContent>(master.SheetAssets.Length);
+            List<LocalisationSheetAsset> candidates = new List<LocalisationSheetAsset>();
 
-            for (int i = 0; i < master.SheetAssets.Length; i++)
+            for (int i = 0; master.SheetAssets != null && i < master.SheetAssets.Length; i++)
             {
-                LocalisationSheetAsset sheetAsset = master.SheetAssets[i];
-
-                if (UpdateProgress($"Fetching sheet [{sheetAsset.SheetName}] ({i + 1} of {master.SheetAssets.Length})...",
-                                   0.5f * i / master.SheetAssets.Length))
+                if (master.SheetAssets[i] != null && !candidates.Contains(master.SheetAssets[i]))
                 {
-                    throw new OperationCanceledException($"{nameof(LocalisationWriter)}::{nameof(FetchAllSheetsAsync)} Cancelled while fetching sheet [{sheetAsset.SheetName}]. Nothing was written");
+                    candidates.Add(master.SheetAssets[i]);
                 }
-
-                string csv = await GoogleSheetDataProvider.GetCsv(master, sheetAsset);
-
-                List<string[]> rows      = CsvParser.ParseCsv(csv);
-                List<string>   languages = CsvParser.GetLanguages(rows[0]);
-
-                CsvParser.GetValues(languages, rows, out List<string> keys, out List<string> _, out Dictionary<string, List<string>> values);
-
-                sheets.Add(new LocalisationSheetContent(sheetAsset.SheetName, languages, keys, values));
             }
 
-            return sheets;
+            string folder = GetSheetsFolder(master);
+
+            if (AssetDatabase.IsValidFolder(folder))
+            {
+                string[] guids = AssetDatabase.FindAssets($"t:{nameof(LocalisationSheetAsset)}", new[] { folder });
+
+                for (int i = 0; i < guids.Length; i++)
+                {
+                    LocalisationSheetAsset asset = AssetDatabase.LoadAssetAtPath<LocalisationSheetAsset>(AssetDatabase.GUIDToAssetPath(guids[i]));
+
+                    if (asset != null && !candidates.Contains(asset))
+                    {
+                        candidates.Add(asset);
+                    }
+                }
+            }
+
+            Dictionary<string, LocalisationSheetAsset> byName = new Dictionary<string, LocalisationSheetAsset>(StringComparer.Ordinal);
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                string sheetName = candidates[i].SheetName;
+
+                if (byName.TryGetValue(sheetName, out LocalisationSheetAsset other))
+                {
+                    throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(FindSheetAssets)} Sheet assets [{AssetDatabase.GetAssetPath(other)}] and [{AssetDatabase.GetAssetPath(candidates[i])}] are both for sheet [{sheetName}]. Delete one");
+                }
+
+                byName.Add(sheetName, candidates[i]);
+            }
+
+            LocalisationSheetAsset[] assets = new LocalisationSheetAsset[sheets.Count];
+
+            for (int i = 0; i < sheets.Count; i++)
+            {
+                byName.TryGetValue(sheets[i].SheetName, out assets[i]);
+            }
+
+            gone = new List<LocalisationSheetAsset>();
+
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (Array.IndexOf(assets, candidates[i]) < 0)
+                {
+                    gone.Add(candidates[i]);
+                }
+            }
+
+            return assets;
         }
 
-        private static void ValidateSheets(LocalisationMaster master, List<LocalisationSheetContent> sheets)
+        /// <summary>
+        /// Gives each new sheet an asset, moves every sheet's asset into the Sheets folder — a move keeps what references
+        /// it — and rewrites the master's list to the sheets.
+        /// </summary>
+        private static void PlaceSheetAssets(LocalisationMaster master, List<LocalisationSheetContent> sheets, LocalisationSheetAsset[] assets)
+        {
+            string folder = GetSheetsFolder(master);
+
+            if (!AssetDatabase.IsValidFolder(folder))
+            {
+                AssetDatabase.CreateFolder(GetAssetFolder(folder), SHEETS_FOLDER);
+            }
+
+            for (int i = 0; i < assets.Length; i++)
+            {
+                // The asset's name is the sheet's, so it must land at exactly this path, never a uniquified one.
+                string target = $"{folder}/{sheets[i].SheetName}.asset";
+
+                if (assets[i] == null)
+                {
+                    LocalisationSheetAsset asset = ScriptableObject.CreateInstance<LocalisationSheetAsset>();
+
+                    asset.name = sheets[i].SheetName;
+
+                    RefuseOccupied(target);
+                    AssetDatabase.CreateAsset(asset, target);
+
+                    assets[i] = asset;
+
+                    continue;
+                }
+
+                string path = AssetDatabase.GetAssetPath(assets[i]);
+
+                if (path == target)
+                {
+                    continue;
+                }
+
+                RefuseOccupied(target);
+
+                string error = AssetDatabase.MoveAsset(path, target);
+
+                if (!string.IsNullOrEmpty(error))
+                {
+                    throw new IOException($"{nameof(LocalisationWriter)}::{nameof(PlaceSheetAssets)} Could not move [{path}] into [{folder}]: {error}");
+                }
+            }
+
+            master.SheetAssets = assets;
+
+            EditorUtility.SetDirty(master);
+            AssetDatabase.SaveAssetIfDirty(master);
+        }
+
+        private static void RefuseOccupied(string path)
+        {
+            if (AssetDatabase.LoadMainAssetAtPath(path) != null)
+            {
+                throw new IOException($"{nameof(LocalisationWriter)}::{nameof(RefuseOccupied)} [{path}] is already taken by an asset that is not this sheet's. Move or rename it");
+            }
+        }
+
+        private static void OfferToDeleteGoneSheets(LocalisationMaster master, List<LocalisationSheetAsset> gone)
+        {
+            if (gone.Count == 0)
+            {
+                return;
+            }
+
+            List<string>  paths = new List<string>();
+            StringBuilder names = new StringBuilder();
+
+            for (int i = 0; i < gone.Count; i++)
+            {
+                LocalisationSheetAsset asset     = gone[i];
+                string                 keysClass = GetKeysClassPath(master, asset);
+
+                paths.Add(AssetDatabase.GetAssetPath(asset));
+                names.AppendLine(asset.name);
+
+                if (keysClass != null)
+                {
+                    paths.Add(keysClass);
+                }
+            }
+
+            bool delete = EditorUtility.DisplayDialog("Sheets no longer in the spreadsheet",
+                                                      $"These sheet assets have no tab in the spreadsheet any more:\n\n{names}\nDelete them, and their generated keys classes? Anything that still uses one, such as a field's sheets, loses it.",
+                                                      "Delete",
+                                                      "Keep");
+
+            if (!delete)
+            {
+                Debug.LogWarning($"{nameof(LocalisationWriter)}::{nameof(OfferToDeleteGoneSheets)} Kept sheet assets with no tab in the spreadsheet, which are left out of generation:\n{names}");
+
+                return;
+            }
+
+            List<string> failed = new List<string>();
+
+            if (!AssetDatabase.MoveAssetsToTrash(paths.ToArray(), failed))
+            {
+                Debug.LogError($"{nameof(LocalisationWriter)}::{nameof(OfferToDeleteGoneSheets)} Could not delete: {string.Join(", ", failed)}");
+            }
+        }
+
+        private static void SavePull(LocalisationMaster master, byte[] workbook)
+        {
+            string path = GetPullPath(master);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            File.WriteAllBytes(path, workbook);
+        }
+
+        /// <summary>Where the master's last pull is kept: Library, so it is per machine and never committed.</summary>
+        private static string GetPullPath(LocalisationMaster master)
+        {
+            string guid = AssetDatabase.AssetPathToGUID(AssetDatabase.GetAssetPath(master));
+            string path = $"{PULL_FOLDER}/{guid}.xlsx";
+
+            return path;
+        }
+
+        /// <returns>The sheets' assets, which the last pull left in the master's list in the same order.</returns>
+        private static LocalisationSheetAsset[] GetPulledSheetAssets(LocalisationMaster master, List<LocalisationSheetContent> sheets)
+        {
+            LocalisationSheetAsset[] assets  = new LocalisationSheetAsset[sheets.Count];
+            bool                     matches = master.SheetAssets != null && master.SheetAssets.Length == sheets.Count;
+
+            for (int i = 0; matches && i < sheets.Count; i++)
+            {
+                assets[i] = master.SheetAssets[i];
+                matches   = assets[i] != null && assets[i].SheetName == sheets[i].SheetName;
+            }
+
+            if (!matches)
+            {
+                throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(GetPulledSheetAssets)} [{master.name}]'s sheet assets no longer match its last pull. Pull again");
+            }
+
+            return assets;
+        }
+
+        private static string GetSheetsFolder(LocalisationMaster master)
+        {
+            string folder = $"{GetAssetFolder(AssetDatabase.GetAssetPath(master))}/{SHEETS_FOLDER}";
+
+            return folder;
+        }
+
+        /// <summary>The folder an asset path is in, as an asset path: Path's own answer uses backslashes on Windows.</summary>
+        private static string GetAssetFolder(string assetPath)
+        {
+            string folder = Path.GetDirectoryName(assetPath)?.Replace('\\', '/');
+
+            return folder;
+        }
+
+        private static string GetKeysClassFolder(LocalisationMaster master, LocalisationSheetAsset asset)
+        {
+            string folder = asset == null || string.IsNullOrEmpty(asset.KeysClassFolderOverride) ? master.DefaultKeysClassFolder : asset.KeysClassFolderOverride;
+
+            return folder;
+        }
+
+        /// <summary>A sheet's name names its asset and begins every key, so the pull checks it before either is made.</summary>
+        private static void ValidateSheetNames(List<LocalisationSheetContent> sheets)
         {
             HashSet<string> seenSheetNames = new HashSet<string>(StringComparer.Ordinal);
 
             for (int i = 0; i < sheets.Count; i++)
             {
-                LocalisationSheetContent sheet     = sheets[i];
-                LocalisationSheetAsset   asset     = master.SheetAssets[i];
-                string                   sheetName = sheet.SheetName;
+                string sheetName = sheets[i].SheetName;
 
                 if (!IsValidIdentifier(sheetName))
                 {
-                    throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateSheets)} Sheet name [{sheetName}] on asset [{asset.name}] is not a valid C# identifier, and is emitted as a class name");
+                    throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateSheetNames)} Tab [{sheetName}] is not named as a valid C# identifier, which a sheet's name must be: it begins every key a script writes, and names the sheet's keys class. Start its name with '{SheetParser.SKIPPED_TAB_PREFIX}' if it is not a sheet");
                 }
 
                 if (!seenSheetNames.Add(sheetName))
                 {
-                    throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateSheets)} Two sheets are both named [{sheetName}]. Names must be unique: they scope every key and name the generated file");
+                    throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateSheetNames)} Two sheets are both named [{sheetName}]. Names must be unique: they scope every key and name the generated file");
                 }
+            }
+        }
 
-                string namespaceToUse = string.IsNullOrEmpty(asset.NamespaceOverride) ? master.DefaultNamespace : asset.NamespaceOverride;
+        private static void ValidateSheets(LocalisationMaster master, List<LocalisationSheetContent> sheets, LocalisationSheetAsset[] assets)
+        {
+            for (int i = 0; i < sheets.Count; i++)
+            {
+                LocalisationSheetContent sheet = sheets[i];
+                LocalisationSheetAsset   asset = assets[i];
 
-                if (!IsValidNamespace(namespaceToUse))
+                if (asset.GenerateKeysClass)
                 {
-                    throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateSheets)} Namespace [{namespaceToUse}] used by sheet [{sheetName}] is not a valid C# namespace");
+                    ValidateKeysClass(master, asset, sheet);
                 }
 
-                ValidateGeneratedIdentifiers(sheetName, sheet.Keys);
-
-                ReportEmptyValues(sheetName, sheet);
+                ReportEmptyValues(sheet.SheetName, sheet);
             }
 
             ValidateLanguageConsistency(master, sheets);
@@ -207,6 +477,23 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
                     throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateLanguageConsistency)} Sheet [{sheets[i].SheetName}] declares languages [{string.Join(", ", actual)}] but sheet [{sheets[0].SheetName}] declares [{string.Join(", ", expected)}]. The {nameof(LocalisationVersion.FilePerLanguage)} format needs the same languages, in the same order, in every sheet");
                 }
             }
+        }
+
+        private static void ValidateKeysClass(LocalisationMaster master, LocalisationSheetAsset asset, LocalisationSheetContent sheet)
+        {
+            string namespaceToUse = string.IsNullOrEmpty(asset.NamespaceOverride) ? master.DefaultNamespace : asset.NamespaceOverride;
+
+            if (!IsValidNamespace(namespaceToUse))
+            {
+                throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateKeysClass)} Namespace [{namespaceToUse}] used by sheet [{sheet.SheetName}] is not a valid C# namespace");
+            }
+
+            if (string.IsNullOrEmpty(GetKeysClassFolder(master, asset)))
+            {
+                throw new InvalidDataException($"{nameof(LocalisationWriter)}::{nameof(ValidateKeysClass)} Sheet [{sheet.SheetName}] has no folder for its keys class. Set the master's {nameof(LocalisationMaster.DefaultKeysClassFolder)}");
+            }
+
+            ValidateGeneratedIdentifiers(sheet.SheetName, sheet.Keys);
         }
 
         private static void ValidateGeneratedIdentifiers(string sheetName, List<string> keys)
@@ -315,10 +602,80 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
         private static void WriteKeysToClassFiles(LocalisationMaster master, List<LocalisationSheetContent> sheets)
         {
+            List<string> unwanted = new List<string>();
+
             for (int i = 0; i < sheets.Count; i++)
             {
-                WriteGeneratedKeysClass(master.DefaultNamespace, master.SheetAssets[i], sheets[i].Keys);
+                LocalisationSheetAsset asset = master.SheetAssets[i];
+
+                if (asset.GenerateKeysClass)
+                {
+                    WriteGeneratedKeysClass(master, asset, sheets[i].Keys);
+
+                    continue;
+                }
+
+                string keysClass = GetKeysClassPath(master, asset);
+
+                if (keysClass != null)
+                {
+                    unwanted.Add(keysClass);
+                }
             }
+
+            if (unwanted.Count == 0)
+            {
+                return;
+            }
+
+            List<string> failed = new List<string>();
+
+            if (!AssetDatabase.MoveAssetsToTrash(unwanted.ToArray(), failed))
+            {
+                Debug.LogError($"{nameof(LocalisationWriter)}::{nameof(WriteKeysToClassFiles)} Could not delete the keys classes of sheets that no longer generate one: {string.Join(", ", failed)}");
+
+                return;
+            }
+
+            Debug.Log($"{nameof(LocalisationWriter)}::{nameof(WriteKeysToClassFiles)} Deleted the keys classes of sheets that no longer generate one: {string.Join(", ", unwanted)}");
+        }
+
+        /// <returns>The sheet's generated keys class, or null when there is none: no file, or a file this writer did not make.</returns>
+        private static string GetKeysClassPath(LocalisationMaster master, LocalisationSheetAsset asset)
+        {
+            string folder = GetKeysClassFolder(master, asset);
+
+            if (string.IsNullOrEmpty(folder) || string.IsNullOrEmpty(asset.SheetName))
+            {
+                return null;
+            }
+
+            string path = $"{folder}/{asset.SheetName}.cs";
+
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+
+            using (StreamReader reader = new StreamReader(path))
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    string line = reader.ReadLine();
+
+                    if (line == null)
+                    {
+                        break;
+                    }
+
+                    if (line.Trim() == $"{KEYS_CLASS_MARKER}{asset.SheetName}")
+                    {
+                        return path;
+                    }
+                }
+            }
+
+            return null;
         }
 
         private static void RecordKeysOnSheets(LocalisationMaster master, List<LocalisationSheetContent> sheets)
@@ -339,21 +696,16 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
             }
         }
 
-        private static void WriteGeneratedKeysClass(string defaultNamespace, LocalisationSheetAsset asset, List<string> keys)
+        private static void WriteGeneratedKeysClass(LocalisationMaster master, LocalisationSheetAsset asset, List<string> keys)
         {
-            string outFolder = asset.GeneratedOutputFolder;
-
-            if (string.IsNullOrEmpty(outFolder))
-            {
-                outFolder = Path.Combine(Application.dataPath, "GeneralisedLocalisation");
-            }
+            string outFolder = GetKeysClassFolder(master, asset);
 
             if (!Directory.Exists(outFolder))
             {
                 Directory.CreateDirectory(outFolder);
             }
 
-            string namespaceToUse = string.IsNullOrEmpty(asset.NamespaceOverride) ? defaultNamespace : asset.NamespaceOverride;
+            string namespaceToUse = string.IsNullOrEmpty(asset.NamespaceOverride) ? master.DefaultNamespace : asset.NamespaceOverride;
             string sheetName      = asset.SheetName;
 
             string             path = Path.Combine(outFolder, $"{sheetName}.cs");
@@ -361,7 +713,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
             sw.WriteLine($"namespace {namespaceToUse}");
             sw.WriteLine("{");
-            sw.WriteLine($"\t// Auto generated keys for sheet: {sheetName}");
+            sw.WriteLine($"\t{KEYS_CLASS_MARKER}{sheetName}");
             sw.WriteLine("\tpublic static partial class LocalisationKeys");
             sw.WriteLine("\t{");
             sw.WriteLine($"\t\tpublic static class {sheetName}");

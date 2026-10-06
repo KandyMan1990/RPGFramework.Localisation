@@ -16,6 +16,8 @@ namespace RPGFramework.Localisation.Editor
 
             InspectorElement.FillDefaultInspector(root, serializedObject, this);
 
+            root.Q<PropertyField>($"PropertyField:{nameof(LocalisationMaster.SheetAssets)}")?.SetEnabled(false);
+
             root.Add(new VisualElement
                      {
                          style =
@@ -24,38 +26,65 @@ namespace RPGFramework.Localisation.Editor
                          }
                      });
 
-            Button generateButton = new Button(OnGenerateButtonCB)
+            VisualElement buttons = new VisualElement
                                     {
-                                        text = "Generate .locbin and manifest files"
+                                        style =
+                                        {
+                                            flexDirection = FlexDirection.Row
+                                        }
                                     };
 
-            root.Add(generateButton);
+            buttons.Add(new Button(OnPullButtonCB)
+                        {
+                            text = "Pull spreadsheet",
+                            style =
+                            {
+                                flexGrow = 1
+                            }
+                        });
+            buttons.Add(new Button(OnGenerateButtonCB)
+                        {
+                            text = "Generate files",
+                            style =
+                            {
+                                flexGrow = 1
+                            }
+                        });
+
+            root.Add(buttons);
 
             return root;
         }
 
-        private async void OnGenerateButtonCB()
+        private async void OnPullButtonCB()
         {
             try
             {
                 LocalisationMaster asset = (LocalisationMaster)target;
 
-                foreach (LocalisationSheetAsset sheetAsset in asset.SheetAssets)
+                if (string.IsNullOrEmpty(asset.SheetId))
                 {
-                    if (string.IsNullOrEmpty(sheetAsset.SheetName))
-                    {
-                        EditorUtility.DisplayDialog("Missing Sheet Name", $"Set SheetName on {sheetAsset.name} (for folder naming)", "OK");
-                        return;
-                    }
-
-                    if (string.IsNullOrEmpty(sheetAsset.Gid))
-                    {
-                        EditorUtility.DisplayDialog("Missing Gid", $"Set Gid on {sheetAsset.name}", "OK");
-                        return;
-                    }
+                    EditorUtility.DisplayDialog("Missing Sheet Id", $"Set {nameof(LocalisationMaster.SheetId)} on {asset.name} to the spreadsheet's id, or a link to it", "OK");
+                    return;
                 }
 
-                await LocalisationWriter.WriteAsync(asset);
+                await LocalisationWriter.PullAsync(asset);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+            finally
+            {
+                EditorUtility.ClearProgressBar();
+            }
+        }
+
+        private void OnGenerateButtonCB()
+        {
+            try
+            {
+                LocalisationWriter.Generate((LocalisationMaster)target);
             }
             catch (Exception e)
             {
