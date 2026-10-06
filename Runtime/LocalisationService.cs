@@ -362,7 +362,7 @@ namespace RPGFramework.Localisation
 
             m_CurrentLanguage = ResolveLanguage(m_RequestedLanguage, m_Manifest.Languages);
 
-            m_LocalisationBinLoader = LocalisationBinLoaderProvider.Get(m_Manifest.Version);
+            m_LocalisationBinLoader = LocalisationBinLoaderFactory.Create(m_Manifest.Version);
         }
 
         private static string ReadString(byte[] table, int offset)

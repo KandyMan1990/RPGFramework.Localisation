@@ -553,7 +553,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
         private static void WriteLocalisationBin(LocalisationMaster master, List<LocalisationSheetContent> sheets)
         {
-            ILocalisationBinGenerator localisationBinGenerator = LocalisationBinGeneratorProvider.GetLocalisationBinGenerator((byte)master.Version);
+            ILocalisationBinGenerator localisationBinGenerator = LocalisationBinGeneratorFactory.Create((byte)master.Version);
             List<LocalisationBinFile> files                    = localisationBinGenerator.BuildLocalisationBin(sheets);
 
             if (Directory.Exists(Constants.BasePath))
