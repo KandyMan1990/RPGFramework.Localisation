@@ -8,7 +8,7 @@ using RPGFramework.Localisation.StreamingAssetLoader;
 
 namespace RPGFramework.Localisation.Manifest
 {
-    internal static class ManifestProvider
+    internal static class ManifestLoader
     {
         internal static async Task<ManifestData> GetManifestAsync()
         {
@@ -20,7 +20,7 @@ namespace RPGFramework.Localisation.Manifest
 
             if (bytes == null || bytes.Length == 0)
             {
-                throw new FileNotFoundException($"{nameof(ManifestProvider)}::{nameof(GetManifestAsync)} Manifest not found at [{path}]");
+                throw new FileNotFoundException($"{nameof(ManifestLoader)}::{nameof(GetManifestAsync)} Manifest not found at [{path}]");
             }
 
             using MemoryStream stream = new MemoryStream(bytes);
@@ -36,7 +36,7 @@ namespace RPGFramework.Localisation.Manifest
             byte[] magic = reader.ReadBytes(Constants.LocManMagic.Length);
             if (!magic.SequenceEqual(Constants.LocManMagic))
             {
-                throw new InvalidDataException($"{nameof(ManifestProvider)}::{nameof(ReadManifestHeader)} Invalid locman magic");
+                throw new InvalidDataException($"{nameof(ManifestLoader)}::{nameof(ReadManifestHeader)} Invalid locman magic");
             }
 
             byte version = reader.ReadByte();
@@ -72,7 +72,7 @@ namespace RPGFramework.Localisation.Manifest
 
             if (results.Count == 0)
             {
-                throw new InvalidDataException($"{nameof(ManifestProvider)}::{nameof(ReadManifestBody)} Manifest declares no languages");
+                throw new InvalidDataException($"{nameof(ManifestLoader)}::{nameof(ReadManifestBody)} Manifest declares no languages");
             }
 
             string[] languages = results.ToArray();

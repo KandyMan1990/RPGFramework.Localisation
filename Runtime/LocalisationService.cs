@@ -358,7 +358,7 @@ namespace RPGFramework.Localisation
 
         private async Task LoadManifestAsync()
         {
-            m_Manifest = await ManifestProvider.GetManifestAsync();
+            m_Manifest = await ManifestLoader.GetManifestAsync();
 
             m_CurrentLanguage = ResolveLanguage(m_RequestedLanguage, m_Manifest.Languages);
 
