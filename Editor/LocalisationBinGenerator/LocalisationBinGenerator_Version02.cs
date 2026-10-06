@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using RPGFramework.Hashing;
+using RPGFramework.Localisation.LocalisationBinLoader;
 
 namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
@@ -34,7 +35,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
             foreach (string language in languages)
             {
-                string filePath = Path.Combine(Constants.BasePath, $"{language}.locbin");
+                string filePath = LocalisationBinFileLoader.GetPath(language, null, VERSION);
 
                 List<(string sheetName, LocalisationSheetBinary bin)> bins = new List<(string sheetName, LocalisationSheetBinary bin)>();
 

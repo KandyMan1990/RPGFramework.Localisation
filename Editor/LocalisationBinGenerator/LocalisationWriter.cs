@@ -10,8 +10,6 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
     internal static class LocalisationWriter
     {
-        private const string MANIFEST_FILENAME = "manifest.locman";
-
         internal static async Task WriteAsync(LocalisationMaster master)
         {
             if (master == null)
@@ -295,7 +293,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
                 }
             }
 
-            string manifestPath = Path.Combine(Constants.BasePath, MANIFEST_FILENAME);
+            string manifestPath = Path.Combine(Constants.BasePath, Constants.MANIFEST_FILE);
 
             using (FileStream fs = new FileStream(manifestPath, FileMode.Create, FileAccess.Write, FileShare.None))
             using (BinaryWriter bw = new BinaryWriter(fs))

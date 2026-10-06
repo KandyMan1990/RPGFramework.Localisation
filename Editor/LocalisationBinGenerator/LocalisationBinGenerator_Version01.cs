@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using RPGFramework.Localisation.LocalisationBinLoader;
 
 namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
@@ -25,7 +26,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
                 {
                     List<string>            values   = data.Values[language];
                     LocalisationSheetBinary bin      = LocalisationBinaryBuilder.BuildBinary(data.SheetName, data.Keys, values);
-                    string                  filePath = Path.Combine(Constants.BasePath, language, $"{data.SheetName}.locbin");
+                    string                  filePath = LocalisationBinFileLoader.GetPath(language, data.SheetName, VERSION);
 
                     files.Add(new LocalisationBinFile(filePath, BuildLocBin(language, bin)));
                 }

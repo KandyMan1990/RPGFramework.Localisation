@@ -11,6 +11,8 @@ namespace RPGFramework.Localisation
         private const byte MAGIC_3 = (byte)'B';
         private const byte MAGIC_4 = (byte)'M';
 
+        internal const string MANIFEST_FILE = "manifest.locman";
+
         internal static readonly byte[] LocBinMagic =
         {
                 MAGIC_0,

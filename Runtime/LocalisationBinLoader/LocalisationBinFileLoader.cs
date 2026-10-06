@@ -85,7 +85,7 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
             throw new FileNotFoundException($"{nameof(LocalisationBinFileLoader)}::{nameof(ResolvePathAsync)} Missing .locbin language=[{language}], neutral=[{neutralLanguage}]. Tried {attempted}");
         }
 
-        private static string GetPath(string language, string sheetName, byte version)
+        internal static string GetPath(string language, string sheetName, byte version)
         {
             return version switch
                    {

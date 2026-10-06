@@ -11,14 +11,17 @@ namespace RPGFramework.Localisation.Editor
         public string SheetName;
 
         [Tooltip("gid for the sheet tab")]
-        public string Gid;
+        [SerializeField]
+        internal string Gid;
 
         [Header("Generation")]
         [Tooltip("Where to drop the generated C# keys file (example: Assets/GeneratedLocalisation/<SheetName>)")]
-        public string GeneratedOutputFolder = "Assets/GeneratedLocalisation";
+        [SerializeField]
+        internal string GeneratedOutputFolder = "Assets/GeneratedLocalisation";
 
         [Tooltip("An override for the default namespace, leave this blank to use the value in master")]
-        public string NamespaceOverride = string.Empty;
+        [SerializeField]
+        internal string NamespaceOverride = string.Empty;
 
         [SerializeField]
         [HideInInspector]

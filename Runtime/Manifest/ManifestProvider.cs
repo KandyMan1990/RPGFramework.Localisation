@@ -10,13 +10,11 @@ namespace RPGFramework.Localisation.Manifest
 {
     internal static class ManifestProvider
     {
-        private const string MANIFEST_FILE = "manifest.locman";
-
         internal static async Task<ManifestData> GetManifestAsync()
         {
             IStreamingAssetLoader assetLoader = StreamingAssetLoaderProvider.Get();
 
-            string path = HelperFunctions.CombinePath(Constants.BasePath, MANIFEST_FILE);
+            string path = HelperFunctions.CombinePath(Constants.BasePath, Constants.MANIFEST_FILE);
 
             byte[] bytes = await assetLoader.LoadAsync(path);
 
