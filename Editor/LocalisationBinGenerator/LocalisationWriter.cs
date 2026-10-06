@@ -420,8 +420,12 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
         {
             List<ILocalisationTextValidator> validators = new List<ILocalisationTextValidator>();
 
-            foreach (Type type in TypeCache.GetTypesDerivedFrom<ILocalisationTextValidator>())
+            TypeCache.TypeCollection types = TypeCache.GetTypesDerivedFrom<ILocalisationTextValidator>();
+
+            for (int i = 0; i < types.Count; i++)
             {
+                Type type = types[i];
+
                 if (!type.IsAbstract)
                 {
                     validators.Add((ILocalisationTextValidator)Activator.CreateInstance(type));
@@ -430,16 +434,22 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
             List<string> problems = new List<string>();
 
-            foreach (LocalisationSheetContent sheet in sheets)
+            for (int j = 0; j < sheets.Count; j++)
             {
-                foreach (string language in sheet.Languages)
+                LocalisationSheetContent sheet = sheets[j];
+
+                for (int k = 0; k < sheet.Languages.Count; k++)
                 {
+                    string language = sheet.Languages[k];
+
                     List<string> values = sheet.Values[language];
 
                     for (int i = 0; i < values.Count; i++)
                     {
-                        foreach (ILocalisationTextValidator validator in validators)
+                        for (int m = 0; m < validators.Count; m++)
                         {
+                            ILocalisationTextValidator validator = validators[m];
+
                             validator.Validate(sheet.SheetName, language, sheet.Keys[i], values[i] ?? string.Empty, problems);
                         }
                     }
@@ -502,8 +512,10 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
             seen.Add("SHEET_NAME", "<generated sheet name constant>");
 
-            foreach (string key in keys)
+            for (int i = 0; i < keys.Count; i++)
             {
+                string key = keys[i];
+
                 string identifier = SanitiseIdentifier(key);
 
                 if (seen.TryGetValue(identifier, out string existing))
@@ -517,8 +529,10 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
         private static void ReportEmptyValues(string sheetName, LocalisationSheetContent sheet)
         {
-            foreach (string language in sheet.Languages)
+            for (int j = 0; j < sheet.Languages.Count; j++)
             {
+                string language = sheet.Languages[j];
+
                 List<string> values = sheet.Values[language];
                 int          empty  = 0;
 
@@ -549,8 +563,10 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
             Directory.CreateDirectory(Constants.BasePath);
 
-            foreach (LocalisationBinFile file in files)
+            for (int i = 0; i < files.Count; i++)
             {
+                LocalisationBinFile file = files[i];
+
                 string directory = Path.GetDirectoryName(file.Path);
 
                 if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
@@ -569,10 +585,14 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
             List<string>    languages = new List<string>();
             HashSet<string> seen      = new HashSet<string>(StringComparer.Ordinal);
 
-            foreach (LocalisationSheetContent sheet in sheets)
+            for (int i = 0; i < sheets.Count; i++)
             {
-                foreach (string language in sheet.Languages)
+                LocalisationSheetContent sheet = sheets[i];
+
+                for (int j = 0; j < sheet.Languages.Count; j++)
                 {
+                    string language = sheet.Languages[j];
+
                     if (seen.Add(language))
                     {
                         languages.Add(language);
@@ -588,8 +608,10 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
                 bw.Write(Constants.LocManMagic);
                 bw.Write((byte)master.Version);
 
-                foreach (string language in languages)
+                for (int i = 0; i < languages.Count; i++)
                 {
+                    string language = languages[i];
+
                     bw.Write(Encoding.UTF8.GetBytes(language));
                     bw.Write((byte)0);
                 }
@@ -685,8 +707,12 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
                 LocalisationSheetAsset asset = master.SheetAssets[i];
                 List<string>           keys  = new List<string>(sheets[i].Keys.Count);
 
-                foreach (string key in sheets[i].Keys)
+                List<string> sheetKeys = sheets[i].Keys;
+
+                for (int j = 0; j < sheetKeys.Count; j++)
                 {
+                    string key = sheetKeys[j];
+
                     keys.Add($"{asset.SheetName}{LocalisationBinaryBuilder.KEY_SEPARATOR}{key}");
                 }
 
@@ -722,8 +748,10 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
             sw.WriteLine($"\t\t\t///<summary>{EscapeXmlDoc(sheetName)}</summary>");
             sw.WriteLine($"\t\t\tpublic const string SHEET_NAME = @\"{EscapeVerbatim(sheetName)}\";");
 
-            foreach (string key in keys)
+            for (int i = 0; i < keys.Count; i++)
             {
+                string key = keys[i];
+
                 string id           = SanitiseIdentifier(key);
                 string qualifiedKey = $"{sheetName}{LocalisationBinaryBuilder.KEY_SEPARATOR}{key}";
 
@@ -775,8 +803,12 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
                 return false;
             }
 
-            foreach (string part in value.Split('.'))
+            string[] parts = value.Split('.');
+
+            for (int i = 0; i < parts.Length; i++)
             {
+                string part = parts[i];
+
                 if (!IsValidIdentifier(part))
                 {
                     return false;
@@ -840,8 +872,10 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
         {
             StringBuilder builder = new StringBuilder(value.Length);
 
-            foreach (char c in value)
+            for (int i = 0; i < value.Length; i++)
             {
+                char c = value[i];
+
                 if (char.IsLetterOrDigit(c) && c < 128 || c == '_')
                 {
                     builder.Append(c);

@@ -33,14 +33,18 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
                 }
             }
 
-            foreach (string language in languages)
+            for (int i = 0; i < languages.Count; i++)
             {
+                string language = languages[i];
+
                 string filePath = LocalisationBinFileLoader.GetPath(language, null, VERSION);
 
                 List<(string sheetName, LocalisationSheetBinary bin)> bins = new List<(string sheetName, LocalisationSheetBinary bin)>();
 
-                foreach (LocalisationSheetContent data in dataToWrite)
+                for (int j = 0; j < dataToWrite.Count; j++)
                 {
+                    LocalisationSheetContent data = dataToWrite[j];
+
                     List<string>            values = data.Values[language];
                     LocalisationSheetBinary bin    = LocalisationBinaryBuilder.BuildBinary(data.SheetName, data.Keys, values);
                     bins.Add((data.SheetName, bin));

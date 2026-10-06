@@ -20,10 +20,14 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
         {
             List<LocalisationBinFile> files = new List<LocalisationBinFile>();
 
-            foreach (LocalisationSheetContent data in dataToWrite)
+            for (int i = 0; i < dataToWrite.Count; i++)
             {
-                foreach (string language in data.Languages)
+                LocalisationSheetContent data = dataToWrite[i];
+
+                for (int j = 0; j < data.Languages.Count; j++)
                 {
+                    string language = data.Languages[j];
+
                     List<string>            values   = data.Values[language];
                     LocalisationSheetBinary bin      = LocalisationBinaryBuilder.BuildBinary(data.SheetName, data.Keys, values);
                     string                  filePath = LocalisationBinFileLoader.GetPath(language, data.SheetName, VERSION);

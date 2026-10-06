@@ -101,8 +101,10 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
             comments      = new List<string>();
             perLangValues = new Dictionary<string, List<string>>(languages.Count, StringComparer.Ordinal);
 
-            foreach (string language in languages)
+            for (int i = 0; i < languages.Count; i++)
             {
+                string language = languages[i];
+
                 perLangValues.Add(language, new List<string>());
             }
 
