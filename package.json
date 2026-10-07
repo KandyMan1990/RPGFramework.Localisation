@@ -14,5 +14,12 @@
   },
   "dependencies": {
     "com.rpgframework.hashing": "2.0.1"
-  }
+  },
+  "samples": [
+    {
+      "displayName": "Localisation Sample",
+      "description": "A title screen and settings panel in five languages, with its text built and its keys classes generated, so it runs without a spreadsheet. After importing it, choose RPG Framework > Localisation > Install Sample Text to copy its text into StreamingAssets, then play the Localisation Sample scene.",
+      "path": "Samples~/Localisation Sample"
+    }
+  ]
 }

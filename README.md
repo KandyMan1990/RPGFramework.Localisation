@@ -218,6 +218,24 @@ Some suggestions for fitting it in:
 
 ---
 
+## Sample
+
+**Localisation Sample**: a title screen and a settings panel in five languages, its text already built (File Per
+Sheet) and its keys classes generated, so it runs without a spreadsheet.
+
+1. Import it from the Package Manager.
+2. Choose **RPG Framework > Localisation > Install Sample Text**, which copies its text into
+   `StreamingAssets/Localisation`: a sample cannot put files there itself. It refuses a project that already has
+   localisation files there rather than replace them.
+3. Open the **Localisation Sample** scene and press Play.
+
+It shows `Generic` loaded for as long as it runs and each panel loading its own sheet as it opens and unloading it as it
+closes; the language button stepping through every language the sample ships, with every label redrawn on
+`OnLanguageChanged`; keys named through the generated `LocalisationKeys` classes; and New Game looking its text up by
+its key's hash.
+
+---
+
 ## Not in this version
 
 - **A private spreadsheet can't be pulled**; it must be link-shared.
