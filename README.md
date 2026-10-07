@@ -116,10 +116,105 @@ localisation.UnloadLocalisationData(new[] { "TitleMenu" });
 - **`Get` returns the text**, or a marker naming what is missing — `MISSING KEY [...]`, `MISSING SHEET [...]` — so a
   mistake shows on screen. `TryGet` says whether the key was found instead. Both take the key as text or as its
   FNV-1a 64 hash, for keys kept as data.
-- **`ILocalisationArgs`** carries the sheet names a screen needs (`DataSheetsToLoad`), for code that opens a screen to
-  hand to it.
 - Files are read from StreamingAssets directly, or with a web request on Android and WebGL, where StreamingAssets is
   not a folder.
+
+---
+
+## Using it on its own
+
+Nothing here needs the rest of the RPG Framework: the package depends only on RPGFramework.Hashing, and the service is a
+plain C# object your game creates and keeps.
+
+**Make one service for the game's life, and initialise it before any text is shown.** A small first scene that does so
+and then loads the next is the simplest way to be sure nothing asks for text too early:
+
+```csharp
+using RPGFramework.Localisation;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public sealed class Boot : MonoBehaviour
+{
+    public static ILocalisationService Localisation { get; private set; }
+
+    private async void Start()
+    {
+        Localisation = new LocalisationService();
+
+        await Localisation.InitialiseAsync();
+        await Localisation.LoadNewLocalisationDataAsync("Generic");
+
+        await SceneManager.LoadSceneAsync("Title");
+    }
+}
+```
+
+Hold it however your game holds its services: a static as here, an object that is never destroyed, or your own
+dependency injection.
+
+Some suggestions for fitting it in:
+
+- **Load a screen's sheets as it opens and unload them as it closes**, so only the text in use is in memory, and keep a
+  sheet every screen uses, such as `Generic`, loaded throughout. A sheet already loaded throws if loaded again, so give
+  each screen sheets of its own.
+- **Redraw text when the language changes.** `OnLanguageChanged` is raised once every loaded sheet has been reloaded in
+  the new language. In a component showing a UI Toolkit `Label`, `m_Title`:
+
+  ```csharp
+  private void OnEnable()
+  {
+      Boot.Localisation.OnLanguageChanged += Redraw;
+      Redraw(Boot.Localisation.CurrentLanguage);
+  }
+
+  private void OnDisable()
+  {
+      Boot.Localisation.OnLanguageChanged -= Redraw;
+  }
+
+  private void Redraw(string language)
+  {
+      m_Title.text = Boot.Localisation.Get(LocalisationKeys.TitleMenu.NEW_GAME);
+  }
+  ```
+
+- **Keep the player's choice of language** wherever your game keeps its settings, and pass it to `SetCurrentLanguage`
+  after `InitialiseAsync`. `GetAllLanguages` lists what can be chosen.
+- **Name keys in code with a keys class**, and **store keys kept as data** — in a save, or on a ScriptableObject — as
+  their hash, `Fnv1a64.Hash("Generic/Yes")` from RPGFramework.Hashing, read back with `Get(ulong)`: eight bytes, the same
+  size for every key.
+- **Choose File Per Sheet** if content added after release will bring sheets of its own.
+
+---
+
+## In the RPG Framework
+
+- **One service for the whole game**, bound by the global installer, whose `Bootstrap` initialises it, so Core enters
+  the first module only once the manifest has been read:
+
+  ```csharp
+  container.BindSingleton<ILocalisationService, LocalisationService>().AsNonLazy();
+  ```
+
+  ```csharp
+  public override Task Bootstrap(IDIResolver resolver)
+  {
+      ILocalisationService localisation = resolver.Resolve<ILocalisationService>();
+
+      return localisation.InitialiseAsync();
+  }
+  ```
+
+- **Each menu names its sheets** in its localisation args, an **`ILocalisationArgs`** (`DataSheetsToLoad`): they are
+  loaded as the menu opens and unloaded as it closes.
+- **Each field names its sheets** in the Field Designer: they are loaded as the field is entered and unloaded as it is
+  left. Its dialogue keys are compiled into its scripts as hashes, and its location name is kept the same way.
+- **The player's language** is kept in Core's settings, chosen in the Language and Config menus, and applied by the
+  title screen at start-up.
+- **The editors read the sheet assets**: the Field Designer offers dialogue keys from the sheets a field loads, Field's
+  export refuses a key none of them has, and Field checks dialogue markup when the files are generated, through an
+  `ILocalisationTextValidator`.
 
 ---
 
