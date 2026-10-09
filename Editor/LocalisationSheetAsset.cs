@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -20,13 +21,13 @@ namespace RPGFramework.Localisation.Editor
 
         [SerializeField]
         [HideInInspector]
-        private List<string> m_Keys = new List<string>();
+        private string[] m_Keys = Array.Empty<string>();
 
         /// <summary>The tab's name in the spreadsheet, which the pull names the asset after.</summary>
         public string SheetName => name;
 
         public IReadOnlyList<string> Keys => m_Keys;
 
-        internal void SetKeys(List<string> keys) => m_Keys = keys;
+        internal void SetKeys(string[] keys) => m_Keys = keys;
     }
 }

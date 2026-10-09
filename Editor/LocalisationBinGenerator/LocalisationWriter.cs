@@ -707,7 +707,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
             for (int i = 0; i < sheets.Count; i++)
             {
                 LocalisationSheetAsset asset = master.SheetAssets[i];
-                List<string>           keys  = new List<string>(sheets[i].Keys.Count);
+                string[]               keys  = new string[sheets[i].Keys.Count];
 
                 List<string> sheetKeys = sheets[i].Keys;
 
@@ -715,7 +715,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
                 {
                     string key = sheetKeys[j];
 
-                    keys.Add($"{asset.SheetName}{LocalisationBinaryBuilder.KEY_SEPARATOR}{key}");
+                    keys[j] = $"{asset.SheetName}{LocalisationBinaryBuilder.KEY_SEPARATOR}{key}";
                 }
 
                 asset.SetKeys(keys);
