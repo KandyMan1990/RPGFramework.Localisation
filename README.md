@@ -25,8 +25,9 @@ Each tab is a **sheet**, laid out as:
   with a digit. A tab whose
   name starts with `#` is not a sheet and is skipped, for notes or a glossary beside the text.
 - **A key is written with its sheet**, as `Sheet/Key` (`Generic/Yes`), so keys only need to be unique within a sheet.
-- **The spreadsheet must be shared as "anyone with the link can view"**, because the pull uses Google's anonymous export.
-  Anyone with its id can read it, and the id is kept in the project.
+- **The pull reaches the spreadsheet one of two ways**: by its link, when it is shared as "anyone with the link can
+  view", or through a web app deployed from it, which keeps it private. [Reaching the spreadsheet](#reaching-the-spreadsheet)
+  has both.
 
 ---
 
@@ -34,11 +35,61 @@ Each tab is a **sheet**, laid out as:
 
 Create a master asset with **Create > RPG Framework > Localisation > Master** and give it:
 
-- **Sheet Id**: the spreadsheet's id, or a link to it.
+- **Access**: how the pull reaches the spreadsheet, **Shared Link** or **Web App** (below).
+- **Sheet Id**, for a shared link: the spreadsheet's id, or a link to it.
+- **Web App URL**, for a web app: the URL its deployment gives.
 - **Default Namespace** and **Default Keys Class Folder**, for the generated keys classes (below).
 - **Version**: how the files are laid out (below).
 
-Then use the two buttons below its fields.
+Once it can reach the spreadsheet, use the two buttons below its fields, **Pull** and **Generate files**.
+
+### Reaching the spreadsheet
+
+**By its shared link.** Share the spreadsheet as "anyone with the link can view" and put its id, or its link, in
+**Sheet Id**. Nothing more to set up, but anyone who has the id can read the spreadsheet, and the id is saved in the
+master, so it is in your project and its repository.
+
+**Through a web app**, for a spreadsheet shared with no one but your team. A short script bound to the spreadsheet
+reads it as you and hands the pull the same file the shared link gives, so the two ways pull identical text. One person
+sets it up once:
+
+1. Open the spreadsheet and choose **Extensions > Apps Script**. This makes a script that belongs to the spreadsheet.
+2. On the master, set **Access** to **Web App** and press **Copy web app script**. Paste it over everything in the Apps
+   Script editor, and save. The script is short:
+
+   ```js
+   function doGet() {
+     var url = 'https://docs.google.com/spreadsheets/d/' + SpreadsheetApp.getActiveSpreadsheet().getId() + '/export?format=xlsx';
+     var xlsx = UrlFetchApp.fetch(url, { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() } });
+
+     return ContentService.createTextOutput(Utilities.base64Encode(xlsx.getContent()));
+   }
+   ```
+
+3. Choose **Deploy > New deployment**, select the type **Web app**, and set **Execute as: Me** and **Who has access:
+   Anyone**, then **Deploy**. "Anyone" is needed because Unity's request carries no Google sign-in; the spreadsheet
+   itself stays shared as it was.
+4. Authorise it when Google asks. As the script is yours rather than a published app, Google warns that it hasn't
+   verified it: choose **Advanced**, then **Go to** the project. It asks to see your spreadsheets and to connect to an
+   external service, which it uses to read this spreadsheet's export; it reads no other.
+5. Copy the **Web app URL**, ending `/exec`, into the master's **Web App URL**, and pull.
+
+After changing the script, publish it with **Deploy > Manage deployments**, editing the deployment and choosing a new
+version: the URL stays the same. A new deployment would get a new one.
+
+#### Keeping it private
+
+- **Share the spreadsheet only with the people who edit it.** The web app reads it as whoever deployed it, so nobody
+  needs access to the spreadsheet to pull, and it needs no link sharing.
+- **Keep the web app's URL as you would a password.** Anyone holding it can read the spreadsheet, and it is saved in
+  the master, so it is committed with your project. That suits a private repository.
+- **In a public repository, keep the master out of it**: add the master and its `.meta` to `.gitignore`. Nothing at
+  run time uses the master, and everything pulling and generating make is still committed, so only whoever pulls needs
+  one. A master made again in the same folder, with the same settings, finds the sheet assets by name when it pulls.
+- **If the URL gets out, replace it.** In **Deploy > Manage deployments**, archive the deployment, which stops its URL
+  working, then deploy again and put the new URL in the master.
+- **The web app reads as the person who deployed it.** If they lose access to the spreadsheet, or leave the team,
+  someone else deploys it from their own account and the master takes the new URL.
 
 ### Pull
 
@@ -234,11 +285,23 @@ closes; the language button stepping through every language the sample ships, wi
 `OnLanguageChanged`; keys named through the generated `LocalisationKeys` classes; and New Game looking its text up by
 its key's hash.
 
+### Pulling the sample's spreadsheet
+
+The sample's text has [a spreadsheet of its own](https://docs.google.com/spreadsheets/d/1tedGRzeY6bvF7wFReRbFRLVwgOcJQz6gBVak_ZtP8cQ/edit?usp=sharing),
+shared by link, and a master for it in the sample's `Spreadsheet` folder. Select **Sample Master** and press **Pull**:
+the sheet assets appear in a `Sheets` folder beside it, each with its keys recorded. It generates no keys classes, so
+the sample's own are left as they are.
+
+**Generate files** writes into `StreamingAssets/Localisation`, replacing whatever is there, as your own master would,
+so try it in a project without localisation of its own.
+
+To try a web app, make a copy of the spreadsheet with **File > Make a copy**, set the master's **Access** to **Web
+App**, and follow [Through a web app](#reaching-the-spreadsheet) on your copy.
+
 ---
 
 ## Not in this version
 
-- **A private spreadsheet can't be pulled**; it must be link-shared.
 - **Google Sheets is the only source.**
 - **Renaming a tab doesn't carry its sheet over**: the renamed tab is a new sheet, and every key that began with the old
   name has to change wherever it is used.

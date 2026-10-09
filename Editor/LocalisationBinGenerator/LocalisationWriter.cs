@@ -17,10 +17,10 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
         private const string KEYS_CLASS_MARKER = "// Auto generated keys for sheet: ";
 
         /// <summary>
-        /// Downloads every tab of the master's spreadsheet and brings the sheet assets in line with them: each tab is
-        /// matched to the sheet asset named after it — updated in place, since other assets reference it — or given a new
-        /// one in the Sheets folder beside the master, and its keys are recorded on it. The download is kept in Library,
-        /// unversioned, for <see cref="Generate" /> to build from.
+        /// Downloads every tab of the master's spreadsheet, by its shared link or through its web app, and brings the
+        /// sheet assets in line with them: each tab is matched to the sheet asset named after it — updated in place, since
+        /// other assets reference it — or given a new one in the Sheets folder beside the master, and its keys are recorded
+        /// on it. The download is kept in Library, unversioned, for <see cref="Generate" /> to build from.
         /// </summary>
         internal static async Task PullAsync(LocalisationMaster master)
         {
@@ -35,7 +35,9 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
             {
                 UpdateProgress("Fetching the spreadsheet...", 0f);
 
-                byte[] workbook = await GoogleSheetDataProvider.GetWorkbookAsync(master.SheetId);
+                byte[] workbook = master.Access == SpreadsheetAccess.WebApp
+                                          ? await GoogleSheetDataProvider.GetWorkbookFromWebAppAsync(master.WebAppUrl)
+                                          : await GoogleSheetDataProvider.GetWorkbookAsync(master.SheetId);
 
                 if (UpdateProgress("Reading the sheets...", 0.5f))
                 {
