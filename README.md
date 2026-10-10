@@ -41,7 +41,7 @@ Create a master asset with **Create > RPG Framework > Localisation > Master** an
 - **Default Namespace** and **Default Keys Class Folder**, for the generated keys classes (below).
 - **Version**: how the files are laid out (below).
 
-Once it can reach the spreadsheet, use the two buttons below its fields, **Pull** and **Generate files**.
+Once it can reach the spreadsheet, use the two buttons below its fields, **Pull spreadsheet** and **Generate files**.
 
 ### Reaching the spreadsheet
 
@@ -91,7 +91,7 @@ version: the URL stays the same. A new deployment would get a new one.
 - **The web app reads as the person who deployed it.** If they lose access to the spreadsheet, or leave the team,
   someone else deploys it from their own account and the master takes the new URL.
 
-### Pull
+### Pull spreadsheet
 
 Downloads the whole spreadsheet in one request and brings the sheet assets in line with its tabs:
 
@@ -160,10 +160,11 @@ localisation.UnloadLocalisationData(new[] { "TitleMenu" });
 - **Language**: the service starts in the device's language if the game ships it. Otherwise it uses the neutral
   language (`en` for `en-US`), then any language sharing that neutral (`en-GB`), then the first language the game ships.
   `GetAllLanguages` lists what ships, and `SetCurrentLanguage` switches to one of them, reloads the sheets already
-  loaded in it, and raises `OnLanguageChanged`. A regional language whose file is missing falls back to its neutral
+  loaded in it, and raises `OnLanguageChanged`; it throws for a language the game does not ship. A regional language whose file is missing falls back to its neutral
   language's file.
 - **Sheets are loaded for a screen and unloaded after it**, so only one screen's text is in memory. Loading a sheet that
-  is already loaded throws; unload it first. `UnloadAllLocalisationData` clears everything.
+  is already loaded throws; unload it first. Unloading one that isn't loaded does nothing, and
+  `UnloadAllLocalisationData` clears everything.
 - **`Get` returns the text**, or a marker naming what is missing — `MISSING KEY [...]`, `MISSING SHEET [...]` — so a
   mistake shows on screen. `TryGet` says whether the key was found instead. Both take the key as text or as its
   FNV-1a 64 hash, for keys kept as data.
@@ -181,6 +182,7 @@ plain C# object your game creates and keeps.
 and then loads the next is the simplest way to be sure nothing asks for text too early:
 
 ```csharp
+using System.Threading.Tasks;
 using RPGFramework.Localisation;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -189,7 +191,13 @@ public sealed class Boot : MonoBehaviour
 {
     public static ILocalisationService Localisation { get; private set; }
 
-    private async void Start()
+    private void Start()
+    {
+        // Start cannot be awaited, so the work runs as a task, and anything it throws is logged rather than lost.
+        BootAsync().ContinueWith(task => Debug.LogException(task.Exception), TaskContinuationOptions.OnlyOnFaulted);
+    }
+
+    private async Task BootAsync()
     {
         Localisation = new LocalisationService();
 
@@ -288,7 +296,7 @@ its key's hash.
 ### Pulling the sample's spreadsheet
 
 The sample's text has [a spreadsheet of its own](https://docs.google.com/spreadsheets/d/1tedGRzeY6bvF7wFReRbFRLVwgOcJQz6gBVak_ZtP8cQ/edit?usp=sharing),
-shared by link, and a master for it in the sample's `Spreadsheet` folder. Select **Sample Master** and press **Pull**:
+shared by link, and a master for it in the sample's `Spreadsheet` folder. Select **Sample Master** and press **Pull spreadsheet**:
 the sheet assets appear in a `Sheets` folder beside it, each with its keys recorded. It generates no keys classes, so
 the sample's own are left as they are.
 
