@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using RPGFramework.Hashing;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -29,28 +30,33 @@ namespace RPGFramework.Localisation.Sample
 
         private bool m_SettingsOpen;
 
-        private async void Start()
+        private void Start()
         {
             BuildUI();
 
             m_Localisation = new LocalisationService();
 
-            try
+            Run().FireAndForget();
+
+            async Task Run()
             {
-                await m_Localisation.InitialiseAsync();
+                try
+                {
+                    await m_Localisation.InitialiseAsync();
+                }
+                catch (Exception)
+                {
+                    m_Title.text = "Install the sample's text first:\nRPG Framework > Localisation > Install Sample Text";
+                    return;
+                }
+
+                m_Localisation.OnLanguageChanged += Redraw;
+
+                await m_Localisation.LoadNewLocalisationDataAsync(new[] { LocalisationKeys.Generic.SHEET_NAME, LocalisationKeys.BeginMenu.SHEET_NAME });
+
+                Redraw(m_Localisation.CurrentLanguage);
+                m_Settings.SetEnabled(true);
             }
-            catch (Exception)
-            {
-                m_Title.text = "Install the sample's text first:\nRPG Framework > Localisation > Install Sample Text";
-                return;
-            }
-
-            m_Localisation.OnLanguageChanged += Redraw;
-
-            await m_Localisation.LoadNewLocalisationDataAsync(new[] { LocalisationKeys.Generic.SHEET_NAME, LocalisationKeys.BeginMenu.SHEET_NAME });
-
-            Redraw(m_Localisation.CurrentLanguage);
-            m_Settings.SetEnabled(true);
         }
 
         private void OnDestroy()
@@ -64,34 +70,44 @@ namespace RPGFramework.Localisation.Sample
             m_Localisation.UnloadAllLocalisationData();
         }
 
-        private async void ToggleSettings()
+        private void ToggleSettings()
         {
             m_Settings.SetEnabled(false);
             m_SettingsOpen = !m_SettingsOpen;
 
-            string opening = m_SettingsOpen ? LocalisationKeys.ConfigMenu.SHEET_NAME : LocalisationKeys.BeginMenu.SHEET_NAME;
-            string closing = m_SettingsOpen ? LocalisationKeys.BeginMenu.SHEET_NAME  : LocalisationKeys.ConfigMenu.SHEET_NAME;
+            Run().FireAndForget();
 
-            await m_Localisation.LoadNewLocalisationDataAsync(opening);
-            m_Localisation.UnloadLocalisationData(closing);
+            async Task Run()
+            {
+                string opening = m_SettingsOpen ? LocalisationKeys.ConfigMenu.SHEET_NAME : LocalisationKeys.BeginMenu.SHEET_NAME;
+                string closing = m_SettingsOpen ? LocalisationKeys.BeginMenu.SHEET_NAME  : LocalisationKeys.ConfigMenu.SHEET_NAME;
 
-            m_TitlePanel.style.display    = m_SettingsOpen ? DisplayStyle.None : DisplayStyle.Flex;
-            m_SettingsPanel.style.display = m_SettingsOpen ? DisplayStyle.Flex : DisplayStyle.None;
+                await m_Localisation.LoadNewLocalisationDataAsync(opening);
+                m_Localisation.UnloadLocalisationData(closing);
 
-            Redraw(m_Localisation.CurrentLanguage);
-            m_Settings.SetEnabled(true);
+                m_TitlePanel.style.display    = m_SettingsOpen ? DisplayStyle.None : DisplayStyle.Flex;
+                m_SettingsPanel.style.display = m_SettingsOpen ? DisplayStyle.Flex : DisplayStyle.None;
+
+                Redraw(m_Localisation.CurrentLanguage);
+                m_Settings.SetEnabled(true);
+            }
         }
 
-        private async void NextLanguage()
+        private void NextLanguage()
         {
             m_Language.SetEnabled(false);
 
-            string[] languages = await m_Localisation.GetAllLanguages();
-            int      current   = Array.IndexOf(languages, m_Localisation.CurrentLanguage);
+            Run().FireAndForget();
 
-            await m_Localisation.SetCurrentLanguage(languages[(current + 1) % languages.Length]);
+            async Task Run()
+            {
+                string[] languages = await m_Localisation.GetAllLanguages();
+                int      current   = Array.IndexOf(languages, m_Localisation.CurrentLanguage);
 
-            m_Language.SetEnabled(true);
+                await m_Localisation.SetCurrentLanguage(languages[(current + 1) % languages.Length]);
+
+                m_Language.SetEnabled(true);
+            }
         }
 
         private void Redraw(string language)
