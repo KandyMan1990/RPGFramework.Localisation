@@ -308,6 +308,29 @@ App**, and follow [Through a web app](#reaching-the-spreadsheet) on your copy.
 
 ---
 
+## Tests
+
+The tests are in `Tests/Editor`, on Unity's Test Framework. They compile only in a project that lists the package as
+testable: add it to `testables` in `Packages/manifest.json`,
+
+```json
+"testables": [
+  "com.rpgframework.localisation"
+]
+```
+
+then open **Window › General › Test Runner** and run the **EditMode** tests.
+
+---
+
+## In this version
+
+**2.1.1** adds the tests: both file formats generated and read back through the service, a sheet read alone and
+several together, text outside ASCII, the files it refuses, a regional language read from its neutral language's file,
+and the spreadsheet reader. The API, and the files it writes and reads, are unchanged.
+
+---
+
 ## Not in this version
 
 - **Google Sheets is the only source.**
