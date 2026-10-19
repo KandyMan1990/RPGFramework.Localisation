@@ -39,26 +39,24 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
                 string filePath = LocalisationBinFileLoader.GetPath(language, null, VERSION);
 
-                string[]                  sheetNames = new string[dataToWrite.Count];
-                LocalisationSheetBinary[] bins       = new LocalisationSheetBinary[dataToWrite.Count];
+                NamedSheetBinary[] sheets = new NamedSheetBinary[dataToWrite.Count];
 
                 for (int j = 0; j < dataToWrite.Count; j++)
                 {
                     LocalisationSheetContent data = dataToWrite[j];
 
-                    sheetNames[j] = data.SheetName;
-                    bins[j]       = LocalisationBinaryBuilder.BuildBinary(data.SheetName, data.Keys, data.Values[language]);
+                    sheets[j] = new NamedSheetBinary(data.SheetName, LocalisationBinaryBuilder.BuildBinary(data.SheetName, data.Keys, data.Values[language]));
                 }
 
-                files.Add(new LocalisationBinFile(filePath, BuildLocBin(language, sheetNames, bins)));
+                files.Add(new LocalisationBinFile(filePath, BuildLocBin(language, sheets)));
             }
 
             return files;
         }
 
-        private static byte[] BuildLocBin(string language, string[] sheetNames, LocalisationSheetBinary[] bins)
+        private static byte[] BuildLocBin(string language, NamedSheetBinary[] sheets)
         {
-            int sheetCount = bins.Length;
+            int sheetCount = sheets.Length;
 
             byte[][] payloads = new byte[sheetCount][];
             uint[]   lengths  = new uint[sheetCount];
@@ -68,16 +66,16 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
             for (int i = 0; i < sheetCount; i++)
             {
-                payloads[i] = LocalisationWriter.BuildV1SheetPayload(bins[i]);
+                payloads[i] = LocalisationWriter.BuildV1SheetPayload(sheets[i].Binary);
                 lengths[i]  = (uint)payloads[i].Length;
-                hashes[i]   = Fnv1a64.Hash(sheetNames[i]);
+                hashes[i]   = Fnv1a64.Hash(sheets[i].SheetName);
 
                 if (seenSheetHashes.TryGetValue(hashes[i], out string existing))
                 {
-                    throw new InvalidDataException($"{nameof(LocalisationBinGenerator_Version02)}::{nameof(BuildLocBin)} Sheets [{sheetNames[i]}] and [{existing}] both hash to [{hashes[i]}]. Rename one of them");
+                    throw new InvalidDataException($"{nameof(LocalisationBinGenerator_Version02)}::{nameof(BuildLocBin)} Sheets [{sheets[i].SheetName}] and [{existing}] both hash to [{hashes[i]}]. Rename one of them");
                 }
 
-                seenSheetHashes.Add(hashes[i], sheetNames[i]);
+                seenSheetHashes.Add(hashes[i], sheets[i].SheetName);
             }
 
             using MemoryStream ms = new MemoryStream();
@@ -116,6 +114,18 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
             byte[] bytes = ms.ToArray();
 
             return bytes;
+        }
+
+        private readonly struct NamedSheetBinary
+        {
+            internal readonly string                  SheetName;
+            internal readonly LocalisationSheetBinary Binary;
+
+            internal NamedSheetBinary(string sheetName, LocalisationSheetBinary binary)
+            {
+                SheetName = sheetName;
+                Binary    = binary;
+            }
         }
     }
 }
