@@ -10,17 +10,19 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
         private const byte VERSION = 1;
 
         private readonly ILocalisationBinLoader m_LocalisationBinLoader;
+        private readonly IStreamingAssetLoader  m_AssetLoader;
 
-        internal LocalisationBinLoader_Version01()
+        internal LocalisationBinLoader_Version01(IStreamingAssetLoader assetLoader)
         {
             m_LocalisationBinLoader = this;
+            m_AssetLoader           = assetLoader;
         }
 
         async Task<LocalisationData> ILocalisationBinLoader.LoadSheetAsync(string language, string sheetName)
         {
             string neutral = HelperFunctions.GetNeutralLanguage(language);
 
-            byte[] bytes = await LocalisationBinFileLoader.LoadFileAsync(language, neutral, sheetName, VERSION);
+            byte[] bytes = await LocalisationBinFileLoader.LoadFileAsync(m_AssetLoader, language, neutral, sheetName, VERSION);
 
             using MemoryStream stream = new MemoryStream(bytes);
             using BinaryReader reader = new BinaryReader(stream);

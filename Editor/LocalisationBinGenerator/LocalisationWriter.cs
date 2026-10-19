@@ -584,42 +584,9 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 
         private static void WriteLocalisationManifest(LocalisationMaster master, List<LocalisationSheetContent> sheets)
         {
-            List<string>    languages = new List<string>();
-            HashSet<string> seen      = new HashSet<string>(StringComparer.Ordinal);
-
-            for (int i = 0; i < sheets.Count; i++)
-            {
-                LocalisationSheetContent sheet = sheets[i];
-
-                for (int j = 0; j < sheet.Languages.Count; j++)
-                {
-                    string language = sheet.Languages[j];
-
-                    if (seen.Add(language))
-                    {
-                        languages.Add(language);
-                    }
-                }
-            }
-
             string manifestPath = Path.Combine(Constants.BasePath, Constants.MANIFEST_FILE);
 
-            using (FileStream fs = new FileStream(manifestPath, FileMode.Create, FileAccess.Write, FileShare.None))
-            using (BinaryWriter bw = new BinaryWriter(fs))
-            {
-                bw.Write(Constants.LocManMagic);
-                bw.Write((byte)master.Version);
-
-                for (int i = 0; i < languages.Count; i++)
-                {
-                    string language = languages[i];
-
-                    bw.Write(Encoding.UTF8.GetBytes(language));
-                    bw.Write((byte)0);
-                }
-
-                bw.Flush();
-            }
+            File.WriteAllBytes(manifestPath, LocalisationManifestBuilder.Build((byte)master.Version, sheets));
 
             Debug.Log($"{nameof(LocalisationWriter)}::{nameof(WriteLocalisationManifest)} Wrote {manifestPath}");
         }

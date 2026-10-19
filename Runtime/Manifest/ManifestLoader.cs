@@ -4,16 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using RPGFramework.Localisation.Helpers;
-using RPGFramework.Localisation.StreamingAssetLoader;
 
 namespace RPGFramework.Localisation.Manifest
 {
     internal static class ManifestLoader
     {
-        internal static async Task<ManifestData> GetManifestAsync()
+        internal static async Task<ManifestData> GetManifestAsync(IStreamingAssetLoader assetLoader)
         {
-            IStreamingAssetLoader assetLoader = StreamingAssetLoaderProvider.Get();
-
             string path = HelperFunctions.CombinePath(Constants.BasePath, Constants.MANIFEST_FILE);
 
             byte[] bytes = await assetLoader.LoadAsync(path);

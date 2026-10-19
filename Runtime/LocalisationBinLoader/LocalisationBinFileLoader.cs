@@ -2,7 +2,6 @@
 using System.IO;
 using System.Threading.Tasks;
 using RPGFramework.Localisation.Helpers;
-using RPGFramework.Localisation.StreamingAssetLoader;
 
 namespace RPGFramework.Localisation.LocalisationBinLoader
 {
@@ -13,11 +12,9 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
         /// when the regional file is absent. Only absence triggers the fallback; IO and network failures
         /// propagate.
         /// </summary>
-        internal static async Task<byte[]> LoadFileAsync(string language, string neutralLanguage, string sheetName, byte version)
+        internal static async Task<byte[]> LoadFileAsync(IStreamingAssetLoader assetLoader, string language, string neutralLanguage, string sheetName, byte version)
         {
             string primary = GetPath(language, sheetName, version);
-
-            IStreamingAssetLoader assetLoader = StreamingAssetLoaderProvider.Get();
 
             byte[] bytes = await assetLoader.LoadAsync(primary);
 
@@ -54,11 +51,9 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
         /// as <see cref="LoadFileAsync"/> but returning the path rather than the content, so a caller can read
         /// parts of the file instead of all of it.
         /// </summary>
-        internal static async Task<string> ResolvePathAsync(string language, string neutralLanguage, string sheetName, byte version)
+        internal static async Task<string> ResolvePathAsync(IStreamingAssetLoader assetLoader, string language, string neutralLanguage, string sheetName, byte version)
         {
             string primary = GetPath(language, sheetName, version);
-
-            IStreamingAssetLoader assetLoader = StreamingAssetLoaderProvider.Get();
 
             byte[] probe = await assetLoader.LoadRangeAsync(primary, 0, 1);
 

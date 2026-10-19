@@ -4,7 +4,6 @@ using System.Threading.Tasks;
 using RPGFramework.Hashing;
 using RPGFramework.Localisation.Data;
 using RPGFramework.Localisation.Helpers;
-using RPGFramework.Localisation.StreamingAssetLoader;
 
 namespace RPGFramework.Localisation.LocalisationBinLoader
 {
@@ -24,14 +23,16 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
         private const int HEADER_PROBE_BYTES = 1024;
 
         private readonly ILocalisationBinLoader m_LocalisationBinLoader;
+        private readonly IStreamingAssetLoader  m_AssetLoader;
 
         private Dictionary<ulong, SheetData> m_TableOfContents;
         private string                       m_LoadedLanguage;
         private string                       m_LoadedPath;
 
-        internal LocalisationBinLoader_Version02()
+        internal LocalisationBinLoader_Version02(IStreamingAssetLoader assetLoader)
         {
             m_LocalisationBinLoader = this;
+            m_AssetLoader           = assetLoader;
         }
 
         async Task<LocalisationData> ILocalisationBinLoader.LoadSheetAsync(string language, string sheetName)
@@ -43,21 +44,19 @@ namespace RPGFramework.Localisation.LocalisationBinLoader
 
         async Task<LocalisationData[]> ILocalisationBinLoader.LoadSheetsAsync(string language, string[] sheetNames)
         {
-            IStreamingAssetLoader assetLoader = StreamingAssetLoaderProvider.Get();
-
             if (m_LoadedLanguage != language || m_TableOfContents == null)
             {
                 string neutral = HelperFunctions.GetNeutralLanguage(language);
-                string path    = await LocalisationBinFileLoader.ResolvePathAsync(language, neutral, null, VERSION);
+                string path    = await LocalisationBinFileLoader.ResolvePathAsync(m_AssetLoader, language, neutral, null, VERSION);
 
-                Dictionary<ulong, SheetData> tableOfContents = await ReadTableOfContentsAsync(assetLoader, path, language, neutral);
+                Dictionary<ulong, SheetData> tableOfContents = await ReadTableOfContentsAsync(m_AssetLoader, path, language, neutral);
 
                 m_TableOfContents = tableOfContents;
                 m_LoadedLanguage  = language;
                 m_LoadedPath      = path;
             }
 
-            LocalisationData[] data = await ReadDataAsync(assetLoader, m_LoadedPath, m_TableOfContents, sheetNames);
+            LocalisationData[] data = await ReadDataAsync(m_AssetLoader, m_LoadedPath, m_TableOfContents, sheetNames);
 
             return data;
         }

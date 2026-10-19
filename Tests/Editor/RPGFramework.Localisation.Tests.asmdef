@@ -1,0 +1,23 @@
+{
+    "name": "RPGFramework.Localisation.Tests",
+    "rootNamespace": "RPGFramework.Localisation.Tests",
+    "references": [
+        "RPGFramework.Localisation",
+        "RPGFramework.Localisation.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
