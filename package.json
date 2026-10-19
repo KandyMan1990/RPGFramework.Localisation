@@ -13,7 +13,7 @@
     "url": "https://github.com/KandyMan1990/RPGFramework.Localisation"
   },
   "dependencies": {
-    "com.rpgframework.hashing": "2.0.1"
+    "com.rpgframework.hashing": "2.0.2"
   },
   "samples": [
     {
