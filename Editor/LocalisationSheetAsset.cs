@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace RPGFramework.Localisation.Editor
 {
-    public class LocalisationSheetAsset : ScriptableObject
+    public sealed class LocalisationSheetAsset : ScriptableObject
     {
         [Header("Keys class")]
         [Tooltip("Generate a C# class holding this sheet's keys as constants, for code that names them. Scripts and the editors read the keys recorded on this asset, and need no class")]

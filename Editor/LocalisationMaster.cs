@@ -15,7 +15,7 @@ namespace RPGFramework.Localisation.Editor
     }
 
     [CreateAssetMenu(menuName = "RPG Framework/Localisation/Master", fileName = "LocalisationMaster")]
-    internal class LocalisationMaster : ScriptableObject
+    internal sealed class LocalisationMaster : ScriptableObject
     {
         [Tooltip("How Pull reaches the spreadsheet: by its link, which anyone with the link can view, or through a web app deployed from it, which keeps it private")]
         public SpreadsheetAccess Access = SpreadsheetAccess.SharedLink;

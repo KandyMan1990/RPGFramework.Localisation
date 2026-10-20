@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 namespace RPGFramework.Localisation.Editor
 {
     [CustomEditor(typeof(LocalisationMaster))]
-    internal class LocalisationMasterEditor : UnityEditor.Editor
+    internal sealed class LocalisationMasterEditor : UnityEditor.Editor
     {
         public override VisualElement CreateInspectorGUI()
         {
