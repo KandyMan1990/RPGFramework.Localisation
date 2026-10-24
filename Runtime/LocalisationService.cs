@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Threading.Tasks;
 using RPGFramework.Localisation.StreamingAssetLoader;
 
@@ -19,7 +20,7 @@ namespace RPGFramework.Localisation
 
         public LocalisationService()
         {
-            m_Localisation = new StreamingAssetLocalisation(StreamingAssetLoaderProvider.Get());
+            m_Localisation = new StreamingAssetLocalisation(StreamingAssetLoaderProvider.Get(), CultureInfo.CurrentUICulture.Name);
         }
 
         event Action<string> ILocalisationService.OnLanguageChanged

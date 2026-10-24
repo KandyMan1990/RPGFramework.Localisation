@@ -50,10 +50,20 @@ namespace RPGFramework.Localisation.Tests.Files
         /// <summary>A service over the files, in <paramref name="language" />.</summary>
         internal static ILocalisationService Service(FakeStreamingAssetLoader assets, string language)
         {
-            ILocalisationService service = new StreamingAssetLocalisation(assets);
+            ILocalisationService service = new StreamingAssetLocalisation(assets, language);
 
             Run(service.InitialiseAsync());
             Run(service.SetCurrentLanguage(language));
+
+            return service;
+        }
+
+        /// <summary>A service over the files, started on a device set to <paramref name="deviceLanguage" />.</summary>
+        internal static ILocalisationService Started(FakeStreamingAssetLoader assets, string deviceLanguage)
+        {
+            ILocalisationService service = new StreamingAssetLocalisation(assets, deviceLanguage);
+
+            Run(service.InitialiseAsync());
 
             return service;
         }

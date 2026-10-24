@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -40,10 +39,10 @@ namespace RPGFramework.Localisation
         private ILocalisationBinLoader m_LocalisationBinLoader;
         private Task                   m_ManifestTask;
 
-        internal StreamingAssetLocalisation(IStreamingAssetLoader assetLoader)
+        internal StreamingAssetLocalisation(IStreamingAssetLoader assetLoader, string deviceLanguage)
         {
             m_AssetLoader       = assetLoader;
-            m_RequestedLanguage = CultureInfo.CurrentUICulture.Name;
+            m_RequestedLanguage = deviceLanguage;
             m_CurrentLanguage   = m_RequestedLanguage;
             m_LoadedSheets      = new Dictionary<string, LocalisationData>();
             m_Index             = new Dictionary<ulong, StringRef>();
