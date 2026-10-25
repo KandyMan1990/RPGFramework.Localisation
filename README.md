@@ -270,7 +270,8 @@ Some suggestions for fitting it in:
 - **Each field names its sheets** in the Field Designer: they are loaded as the field is entered and unloaded as it is
   left. Its dialogue keys are compiled into its scripts as hashes, and its location name is kept the same way.
 - **The player's language** is kept in Core's settings, chosen in the Language and Config menus, and applied by the
-  title screen at start-up.
+  title screen at start-up — unless the game no longer ships it, when the device's language, or the nearest, stays. On
+  a first launch the Language menu starts on the language the service started in.
 - **The editors read the sheet assets**: the Field Designer offers dialogue keys from the sheets a field loads, Field's
   export refuses a key none of them has, and Field checks dialogue markup when the files are generated, through an
   `ILocalisationTextValidator`.
@@ -320,19 +321,3 @@ testable: add it to `testables` in `Packages/manifest.json`,
 ```
 
 then open **Window › General › Test Runner** and run the **EditMode** tests.
-
----
-
-## In this version
-
-**2.1.1** adds the tests: both file formats generated and read back through the service, a sheet read alone and
-several together, text outside ASCII, the files it refuses, a regional language read from its neutral language's file,
-and the spreadsheet reader. The API, and the files it writes and reads, are unchanged.
-
----
-
-## Not in this version
-
-- **Google Sheets is the only source.**
-- **Renaming a tab doesn't carry its sheet over**: the renamed tab is a new sheet, and every key that began with the old
-  name has to change wherever it is used.
