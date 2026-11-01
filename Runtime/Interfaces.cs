@@ -4,13 +4,6 @@ using RPGFramework.Localisation.Data;
 
 namespace RPGFramework.Localisation
 {
-    /// <summary>The sheets a screen needs.</summary>
-    public interface ILocalisationArgs
-    {
-        /// <summary>The names of the sheets to load, as their tabs are named.</summary>
-        string[] DataSheetsToLoad { get; }
-    }
-
     /// <summary>
     /// Loads sheets of text from StreamingAssets in the current language and looks text up by key, written
     /// <c>Sheet/Key</c> or as that string's FNV-1a 64 hash.

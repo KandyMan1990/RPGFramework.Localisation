@@ -2,8 +2,10 @@
     "name": "RPGFramework.Localisation.Tests",
     "rootNamespace": "RPGFramework.Localisation.Tests",
     "references": [
+        "RPGFramework.Hashing",
         "RPGFramework.Localisation",
-        "RPGFramework.Localisation.Editor"
+        "RPGFramework.Localisation.Editor",
+        "UnityEngine.TestRunner"
     ],
     "includePlatforms": [
         "Editor"

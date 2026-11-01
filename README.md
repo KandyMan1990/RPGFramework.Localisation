@@ -238,6 +238,32 @@ Some suggestions for fitting it in:
   }
   ```
 
+- **Or name the keys in the layout.** In UI Toolkit, a **`LocalisedText`** binding on an element's text names its
+  key, so the layout says what it shows and no code lists keys. Add it in the UI Builder (the property's binding
+  menu), or in UXML:
+
+  ```xml
+  <ui:Label text="New Game" name="NewGame">
+      <Bindings>
+          <RPGFramework.Localisation.LocalisedText property="text" key="TitleMenu/New_Game"/>
+      </Bindings>
+  </ui:Label>
+  ```
+
+  A **`LocalisedTexts`** over the layout knows which sheets its texts are in, the part of each key before the slash,
+  and shows them all in the current language, on the panel's next update; the text in the UXML shows until then:
+
+  ```csharp
+  LocalisedTexts texts = new LocalisedTexts(m_Root);
+
+  await Boot.Localisation.LoadNewLocalisationDataAsync(texts.SheetNames);
+
+  texts.Show(Boot.Localisation);
+  ```
+
+  Show them again when the language changes. **For text the code picks** — a place's name kept as its key's hash —
+  the binding names the sheet instead of a key, `sheet="Locations"`, and the code sets its `Hash` before showing it.
+  The binding writes any property Unity can bind; a custom control's own needs `[CreateProperty]`.
 - **Keep the player's choice of language** wherever your game keeps its settings, and pass it to `SetCurrentLanguage`
   after `InitialiseAsync`. `GetAllLanguages` lists what can be chosen.
 - **Name keys in code with a keys class**, and **store keys kept as data** — in a save, or on a ScriptableObject — as
@@ -265,8 +291,8 @@ Some suggestions for fitting it in:
   }
   ```
 
-- **Each menu names its sheets** in its localisation args, an **`ILocalisationArgs`** (`DataSheetsToLoad`): they are
-  loaded as the menu opens and unloaded as it closes.
+- **Each menu's text names its keys in the menu's layout**, with `LocalisedText` bindings, and the menu loads the
+  sheets those keys are in as it opens and unloads them as it closes.
 - **Each field names its sheets** in the Field Designer: they are loaded as the field is entered and unloaded as it is
   left. Its dialogue keys are compiled into its scripts as hashes, and its location name is kept the same way.
 - **The player's language** is kept in Core's settings, chosen in the Language and Config menus, and applied by the
