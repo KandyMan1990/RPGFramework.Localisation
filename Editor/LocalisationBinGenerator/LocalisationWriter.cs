@@ -120,6 +120,14 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
             }
 
             AssetDatabase.Refresh();
+
+            // A key a layout names may have gone from the sheets; the build refuses it, so say so now.
+            string[] problems = LayoutKeyCheck.FindProblemsInProject();
+
+            if (problems.Length > 0)
+            {
+                Debug.LogError($"{nameof(LocalisationWriter)}::{nameof(Generate)} The layouts name {problems.Length} key(s) or sheet(s) the sheets do not hold:\n  {string.Join("\n  ", problems)}");
+            }
         }
 
         internal static byte[] BuildV1SheetPayload(LocalisationSheetBinary bin)

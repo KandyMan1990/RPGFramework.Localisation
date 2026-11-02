@@ -15,7 +15,7 @@ namespace RPGFramework.Localisation.Tests.UI
         private Label                m_Keyed;
         private Label                m_Chosen;
         private Button               m_Button;
-        private LocalisedText        m_Choice;
+        private PickedLocalisedText  m_Choice;
         private LocalisedTexts       m_Texts;
 
         [SetUp]

@@ -5,16 +5,16 @@ using UnityEngine.UIElements;
 namespace RPGFramework.Localisation
 {
     /// <summary>
-    /// Every <see cref="LocalisedText" /> in a layout: the sheets they are in, to load before it is shown, and their
-    /// text in the current language.
+    /// Every <see cref="LocalisedText" /> and <see cref="PickedLocalisedText" /> in a layout: the sheets they are in, to
+    /// load before it is shown, and their text in the current language.
     /// </summary>
     public sealed class LocalisedTexts
     {
         /// <summary>The sheets the texts are in, each named once.</summary>
         public string[] SheetNames => m_SheetNames;
 
-        private readonly LocalisedText[] m_Texts;
-        private readonly string[]        m_SheetNames;
+        private readonly ILocalisedBinding[] m_Texts;
+        private readonly string[]            m_SheetNames;
 
         /// <summary>Finds every localised text in <paramref name="roots" /> and the elements beneath them.</summary>
         public LocalisedTexts(params VisualElement[] roots)
@@ -36,7 +36,7 @@ namespace RPGFramework.Localisation
         }
 
         // Counting them first would take the same walk, so they are listed as found.
-        private static LocalisedText[] FindTexts(VisualElement[] roots)
+        internal static ILocalisedBinding[] FindTexts(VisualElement[] roots)
         {
             List<VisualElement> elements = new List<VisualElement>();
 
@@ -45,8 +45,8 @@ namespace RPGFramework.Localisation
                 roots[i].Query<VisualElement>().ToList(elements);
             }
 
-            List<BindingInfo>   bindings = new List<BindingInfo>();
-            List<LocalisedText> texts    = new List<LocalisedText>();
+            List<BindingInfo>       bindings = new List<BindingInfo>();
+            List<ILocalisedBinding> texts    = new List<ILocalisedBinding>();
 
             for (int i = 0; i < elements.Count; i++)
             {
@@ -55,7 +55,7 @@ namespace RPGFramework.Localisation
 
                 for (int j = 0; j < bindings.Count; j++)
                 {
-                    if (bindings[j].binding is LocalisedText text)
+                    if (bindings[j].binding is ILocalisedBinding text)
                     {
                         texts.Add(text);
                     }
@@ -65,7 +65,7 @@ namespace RPGFramework.Localisation
             return texts.ToArray();
         }
 
-        private static string[] FindSheetNames(LocalisedText[] texts)
+        private static string[] FindSheetNames(ILocalisedBinding[] texts)
         {
             string[] names = new string[texts.Length];
             int      count = 0;

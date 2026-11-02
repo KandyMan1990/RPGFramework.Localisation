@@ -5,14 +5,14 @@ using UnityEngine.UIElements;
 
 namespace RPGFramework.Localisation.Tests.UI
 {
-    /// <summary>Layouts as UXML builds them: elements whose text is bound to a <see cref="LocalisedText" />.</summary>
+    /// <summary>Layouts as UXML builds them: elements whose text is bound to a localised text.</summary>
     internal static class Layouts
     {
         internal const string LAYOUT_TEXT = "Layout's own";
 
         private const int MOST_FRAMES = 300;
 
-        internal static Label Label(LocalisedText text)
+        internal static Label Label(Binding text)
         {
             Label label = new Label(LAYOUT_TEXT);
 
@@ -26,9 +26,9 @@ namespace RPGFramework.Localisation.Tests.UI
             return new LocalisedText { Key = key };
         }
 
-        internal static LocalisedText Chosen(string sheet)
+        internal static PickedLocalisedText Chosen(string sheet)
         {
-            return new LocalisedText { Sheet = sheet };
+            return new PickedLocalisedText { Sheet = sheet };
         }
 
         /// <summary>A window whose panel updates bindings as the editor ticks, as a menu's does in play.</summary>
