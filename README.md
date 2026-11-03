@@ -238,15 +238,16 @@ Some suggestions for fitting it in:
   }
   ```
 
-- **Or name the keys in the layout.** In UI Toolkit, a **`LocalisedText`** binding on an element's text names its
-  key, so the layout says what it shows and no code lists keys. Add it in the UI Builder (the property's binding
+- **Or name the keys in the layout.** In UI Toolkit, a **`StaticLocalisedText`** binding on an element's text names
+  its key, so the layout says what it shows and no code lists keys. *Static* is the key, fixed in the layout; the text
+  still follows the language. Add it in the UI Builder (the property's binding
   menu) and choose its key from a list of every key your sheets recorded at their last pull, grouped by sheet — a key
   none holds is kept and marked missing rather than cleared — or write it in UXML:
 
   ```xml
   <ui:Label text="New Game" name="NewGame">
       <Bindings>
-          <RPGFramework.Localisation.LocalisedText property="text" key="TitleMenu/New_Game"/>
+          <RPGFramework.Localisation.StaticLocalisedText property="text" key="TitleMenu/New_Game"/>
       </Bindings>
   </ui:Label>
   ```
@@ -263,15 +264,16 @@ Some suggestions for fitting it in:
   ```
 
   Show them again when the language changes. **For text the code picks** — a place's name kept as its key's hash —
-  bind a **`PickedLocalisedText`** instead, naming only the sheet the code picks from, `sheet="Locations"`, offered
+  bind a **`DynamicLocalisedText`** instead, naming only the sheet the code picks from, `sheet="Locations"`, offered
   from your sheets the same way; the code sets its `Hash` before showing it. `LocalisedTexts` loads and shows both
   kinds. A binding writes any property Unity can bind; a custom control's own needs `[CreateProperty]`. **A string
   field of your own** — on a ScriptableObject, say — marked `[LocalisationKey]` or `[LocalisationSheet]` gets the same
   list in the inspector.
 
   **A player build refuses a layout in your `Assets` naming a key none of your sheets holds**, one not written
-  `Sheet/Key`, or a sheet you do not ship — which at run time would show as missing, or stop the screen opening, since loading a sheet the game does not
-  ship throws. Generate files reports the same, as a key can leave the spreadsheet. Layouts in packages are left out.
+  `Sheet/Key`, or a sheet you do not ship — which at run time would show as missing, or stop the screen opening, since
+  loading a sheet the game does not ship throws. Generate files reports the same, as a key can leave the spreadsheet.
+  Layouts in packages are left out.
 - **Keep the player's choice of language** wherever your game keeps its settings, and pass it to `SetCurrentLanguage`
   after `InitialiseAsync`. `GetAllLanguages` lists what can be chosen.
 - **Name keys in code with a keys class**, and **store keys kept as data** — in a save, or on a ScriptableObject — as
@@ -299,7 +301,7 @@ Some suggestions for fitting it in:
   }
   ```
 
-- **Each menu's text names its keys in the menu's layout**, with `LocalisedText` bindings, and the menu loads the
+- **Each menu's text names its keys in the menu's layout**, with `StaticLocalisedText` bindings, and the menu loads the
   sheets those keys are in as it opens and unloads them as it closes. The layouts come with the Menu Sample, as the
   game's own; it needs no keys class.
 - **Each field names its sheets** in the Field Designer: they are loaded as the field is entered and unloaded as it is

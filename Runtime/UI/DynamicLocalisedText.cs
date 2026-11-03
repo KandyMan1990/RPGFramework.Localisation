@@ -8,7 +8,7 @@ namespace RPGFramework.Localisation
     /// it is loaded. Given its text by <see cref="LocalisedTexts.Show" />.
     /// </summary>
     [UxmlObject]
-    public sealed partial class PickedLocalisedText : CustomBinding, ILocalisedBinding
+    public sealed partial class DynamicLocalisedText : CustomBinding, ILocalisedBinding
     {
         /// <summary>The sheet the code picks an entry from.</summary>
         [UxmlAttribute, LocalisationSheet]
@@ -21,7 +21,7 @@ namespace RPGFramework.Localisation
 
         private string m_Text;
 
-        public PickedLocalisedText()
+        public DynamicLocalisedText()
         {
             m_Text        = null;
             updateTrigger = BindingUpdateTrigger.WhenDirty;

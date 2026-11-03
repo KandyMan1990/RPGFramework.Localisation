@@ -20,7 +20,7 @@ namespace RPGFramework.Localisation.Tests.UI
         [Test]
         public void ThenKeysAndSheetsTheSheetsHoldAreNotReported()
         {
-            VisualElement layout = Layout(Layouts.Keyed("Generic/OK"), Layouts.Chosen("Locations"));
+            VisualElement layout = Layout(Layouts.StaticText("Generic/OK"), Layouts.DynamicText("Locations"));
 
             Assert.IsEmpty(LayoutKeyCheck.FindProblems(LAYOUT, layout, m_Keys));
         }
@@ -28,7 +28,7 @@ namespace RPGFramework.Localisation.Tests.UI
         [Test]
         public void ThenAKeyNoSheetHoldsIsReported()
         {
-            VisualElement layout = Layout(Layouts.Keyed("Generic/OK"), Layouts.Keyed("Generic/Gone"));
+            VisualElement layout = Layout(Layouts.StaticText("Generic/OK"), Layouts.StaticText("Generic/Gone"));
 
             CollectionAssert.AreEqual(new[] { "Title.uxml: no sheet holds the key Generic/Gone" },
                                       LayoutKeyCheck.FindProblems(LAYOUT, layout, m_Keys));
@@ -37,7 +37,7 @@ namespace RPGFramework.Localisation.Tests.UI
         [Test]
         public void ThenASheetTheGameDoesNotShipIsReported()
         {
-            VisualElement layout = Layout(Layouts.Chosen("Nowhere"));
+            VisualElement layout = Layout(Layouts.DynamicText("Nowhere"));
 
             CollectionAssert.AreEqual(new[] { "Title.uxml: there is no sheet Nowhere" },
                                       LayoutKeyCheck.FindProblems(LAYOUT, layout, m_Keys));
@@ -46,27 +46,27 @@ namespace RPGFramework.Localisation.Tests.UI
         [Test]
         public void ThenATextNamingNoKeyIsReported()
         {
-            VisualElement layout = Layout(new LocalisedText());
+            VisualElement layout = Layout(new StaticLocalisedText());
 
-            CollectionAssert.AreEqual(new[] { "Title.uxml: a localised text names no key" },
+            CollectionAssert.AreEqual(new[] { "Title.uxml: a static localised text names no key" },
                                       LayoutKeyCheck.FindProblems(LAYOUT, layout, m_Keys));
         }
 
         [Test]
         public void ThenAKeyNotNamingItsSheetIsReported()
         {
-            VisualElement layout = Layout(Layouts.Keyed("OK"));
+            VisualElement layout = Layout(Layouts.StaticText("OK"));
 
             CollectionAssert.AreEqual(new[] { "Title.uxml: the key OK does not name its sheet, as Sheet/Key" },
                                       LayoutKeyCheck.FindProblems(LAYOUT, layout, m_Keys));
         }
 
         [Test]
-        public void ThenAPickedTextNamingNoSheetIsReported()
+        public void ThenADynamicTextNamingNoSheetIsReported()
         {
-            VisualElement layout = Layout(new PickedLocalisedText());
+            VisualElement layout = Layout(new DynamicLocalisedText());
 
-            CollectionAssert.AreEqual(new[] { "Title.uxml: a picked localised text names no sheet" },
+            CollectionAssert.AreEqual(new[] { "Title.uxml: a dynamic localised text names no sheet" },
                                       LayoutKeyCheck.FindProblems(LAYOUT, layout, m_Keys));
         }
 

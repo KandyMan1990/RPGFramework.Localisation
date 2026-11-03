@@ -21,14 +21,14 @@ namespace RPGFramework.Localisation.Tests.UI
             return label;
         }
 
-        internal static LocalisedText Keyed(string key)
+        internal static StaticLocalisedText StaticText(string key)
         {
-            return new LocalisedText { Key = key };
+            return new StaticLocalisedText { Key = key };
         }
 
-        internal static PickedLocalisedText Chosen(string sheet)
+        internal static DynamicLocalisedText DynamicText(string sheet)
         {
-            return new PickedLocalisedText { Sheet = sheet };
+            return new DynamicLocalisedText { Sheet = sheet };
         }
 
         /// <summary>A window whose panel updates bindings as the editor ticks, as a menu's does in play.</summary>

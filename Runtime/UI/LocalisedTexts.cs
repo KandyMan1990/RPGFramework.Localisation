@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 namespace RPGFramework.Localisation
 {
     /// <summary>
-    /// Every <see cref="LocalisedText" /> and <see cref="PickedLocalisedText" /> in a layout: the sheets they are in, to
+    /// Every <see cref="StaticLocalisedText" /> and <see cref="DynamicLocalisedText" /> in a layout: the sheets they are in, to
     /// load before it is shown, and their text in the current language.
     /// </summary>
     public sealed class LocalisedTexts

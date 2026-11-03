@@ -12,10 +12,10 @@ namespace RPGFramework.Localisation.Tests.UI
     {
         private ILocalisationService m_Service;
         private EditorWindow         m_Window;
-        private Label                m_Keyed;
-        private Label                m_Chosen;
+        private Label                m_StaticLabel;
+        private Label                m_DynamicLabel;
         private Button               m_Button;
-        private PickedLocalisedText  m_Choice;
+        private DynamicLocalisedText m_DynamicText;
         private LocalisedTexts       m_Texts;
 
         [SetUp]
@@ -27,15 +27,15 @@ namespace RPGFramework.Localisation.Tests.UI
             m_Service = StreamingAssets.Service(assets, Sheets.ENGLISH);
             StreamingAssets.Run(m_Service.LoadNewLocalisationDataAsync(new[] { "Generic", "Locations" }));
 
-            m_Choice = Layouts.Chosen("Locations");
-            m_Keyed  = Layouts.Label(Layouts.Keyed("Generic/OK"));
-            m_Chosen = Layouts.Label(m_Choice);
-            m_Button = new Button { text = Layouts.LAYOUT_TEXT };
-            m_Button.SetBinding("text", Layouts.Keyed("Generic/Cancel"));
+            m_DynamicText  = Layouts.DynamicText("Locations");
+            m_StaticLabel  = Layouts.Label(Layouts.StaticText("Generic/OK"));
+            m_DynamicLabel = Layouts.Label(m_DynamicText);
+            m_Button       = new Button { text = Layouts.LAYOUT_TEXT };
+            m_Button.SetBinding("text", Layouts.StaticText("Generic/Cancel"));
 
             VisualElement layout = new VisualElement();
-            layout.Add(m_Keyed);
-            layout.Add(m_Chosen);
+            layout.Add(m_StaticLabel);
+            layout.Add(m_DynamicLabel);
             layout.Add(m_Button);
 
             m_Window = Layouts.Window(layout);
@@ -53,9 +53,9 @@ namespace RPGFramework.Localisation.Tests.UI
         {
             m_Texts.Show(m_Service);
 
-            yield return Layouts.Repaint(m_Window, () => m_Keyed.text != Layouts.LAYOUT_TEXT);
+            yield return Layouts.Repaint(m_Window, () => m_StaticLabel.text != Layouts.LAYOUT_TEXT);
 
-            Assert.AreEqual("OK", m_Keyed.text);
+            Assert.AreEqual("OK", m_StaticLabel.text);
         }
 
         [UnityTest]
@@ -71,12 +71,12 @@ namespace RPGFramework.Localisation.Tests.UI
         [UnityTest]
         public IEnumerator ThenATextTheCodeChoosesShowsTheEntryItsHashNames()
         {
-            m_Choice.Hash = Fnv1a64.Hash("Locations/Harbour");
+            m_DynamicText.Hash = Fnv1a64.Hash("Locations/Harbour");
             m_Texts.Show(m_Service);
 
-            yield return Layouts.Repaint(m_Window, () => m_Chosen.text != Layouts.LAYOUT_TEXT);
+            yield return Layouts.Repaint(m_Window, () => m_DynamicLabel.text != Layouts.LAYOUT_TEXT);
 
-            Assert.AreEqual("Harbour Town", m_Chosen.text);
+            Assert.AreEqual("Harbour Town", m_DynamicLabel.text);
         }
 
         [UnityTest]
@@ -84,9 +84,9 @@ namespace RPGFramework.Localisation.Tests.UI
         {
             m_Texts.Show(m_Service);
 
-            yield return Layouts.Repaint(m_Window, () => m_Chosen.text != Layouts.LAYOUT_TEXT);
+            yield return Layouts.Repaint(m_Window, () => m_DynamicLabel.text != Layouts.LAYOUT_TEXT);
 
-            Assert.AreEqual(string.Empty, m_Chosen.text);
+            Assert.AreEqual(string.Empty, m_DynamicLabel.text);
         }
 
         [UnityTest]
@@ -94,20 +94,20 @@ namespace RPGFramework.Localisation.Tests.UI
         {
             m_Texts.Show(m_Service);
 
-            yield return Layouts.Repaint(m_Window, () => m_Keyed.text != Layouts.LAYOUT_TEXT);
+            yield return Layouts.Repaint(m_Window, () => m_StaticLabel.text != Layouts.LAYOUT_TEXT);
 
             StreamingAssets.Run(m_Service.SetCurrentLanguage(Sheets.FRENCH));
             m_Texts.Show(m_Service);
 
-            yield return Layouts.Repaint(m_Window, () => m_Keyed.text != "OK");
+            yield return Layouts.Repaint(m_Window, () => m_StaticLabel.text != "OK");
 
-            Assert.AreEqual("D'accord", m_Keyed.text);
+            Assert.AreEqual("D'accord", m_StaticLabel.text);
         }
 
         [UnityTest]
         public IEnumerator ThenATextNotYetShownKeepsItsLayoutsText()
         {
-            Label unshown = Layouts.Label(Layouts.Keyed("Generic/OK"));
+            Label unshown = Layouts.Label(Layouts.StaticText("Generic/OK"));
             m_Window.rootVisualElement.Add(unshown);
 
             // The shown button arriving says the panel has written its bindings.

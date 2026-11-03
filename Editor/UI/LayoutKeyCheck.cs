@@ -37,13 +37,13 @@ namespace RPGFramework.Localisation.Editor
 
             for (int i = 0; i < texts.Length; i++)
             {
-                if (texts[i] is LocalisedText keyed)
+                if (texts[i] is StaticLocalisedText staticText)
                 {
-                    FindKeyProblem(layoutName, keyed.Key, keys, problems);
+                    FindKeyProblem(layoutName, staticText.Key, keys, problems);
                 }
-                else if (texts[i] is PickedLocalisedText picked)
+                else if (texts[i] is DynamicLocalisedText dynamicText)
                 {
-                    FindSheetProblem(layoutName, picked.Sheet, keys, problems);
+                    FindSheetProblem(layoutName, dynamicText.Sheet, keys, problems);
                 }
             }
 
@@ -54,7 +54,7 @@ namespace RPGFramework.Localisation.Editor
         {
             if (string.IsNullOrEmpty(key))
             {
-                problems.Add($"{layoutName}: a localised text names no key");
+                problems.Add($"{layoutName}: a static localised text names no key");
             }
             else if (key.IndexOf('/') <= 0)
             {
@@ -70,7 +70,7 @@ namespace RPGFramework.Localisation.Editor
         {
             if (string.IsNullOrEmpty(sheet))
             {
-                problems.Add($"{layoutName}: a picked localised text names no sheet");
+                problems.Add($"{layoutName}: a dynamic localised text names no sheet");
             }
             else if (!keys.HasSheet(sheet))
             {
