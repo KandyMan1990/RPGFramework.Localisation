@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using Unity.Scripting.LifecycleManagement;
 
 namespace RPGFramework.Localisation.Tests.Spreadsheets
 {
@@ -9,6 +10,7 @@ namespace RPGFramework.Localisation.Tests.Spreadsheets
     /// .xlsx files shaped as Google's export is: shared and inline strings, formulas with their results, formatted empty
     /// cells to column Z, and relationship ids out of step with the tabs.
     /// </summary>
+    [NoAutoStaticsCleanup]
     internal static class Workbooks
     {
         private const string MAIN          = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";

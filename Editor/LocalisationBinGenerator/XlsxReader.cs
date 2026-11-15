@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using System.Xml.Linq;
+using Unity.Scripting.LifecycleManagement;
 
 namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
 {
@@ -10,6 +11,7 @@ namespace RPGFramework.Localisation.Editor.LocalisationBinGenerator
     /// Reads every tab of an .xlsx workbook as rows of text, as the spreadsheet's CSV export gives a tab: a formula
     /// reads as its result, a row ends at its last value, and every row is padded to the widest.
     /// </summary>
+    [NoAutoStaticsCleanup]
     internal static class XlsxReader
     {
         private static readonly XNamespace m_Main          = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";

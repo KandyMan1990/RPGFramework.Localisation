@@ -1,5 +1,8 @@
-﻿namespace RPGFramework.Localisation.StreamingAssetLoader
+using Unity.Scripting.LifecycleManagement;
+
+namespace RPGFramework.Localisation.StreamingAssetLoader
 {
+    [NoAutoStaticsCleanup]
     internal static class StreamingAssetLoaderProvider
     {
 #if (UNITY_ANDROID || UNITY_WEBGL) && !UNITY_EDITOR

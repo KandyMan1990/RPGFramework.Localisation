@@ -3,7 +3,7 @@
   "version": "4.0.0",
   "displayName": "RPG Framework Localisation",
   "description": "Localisation system for the RPG Framework",
-  "unity": "6000.0",
+  "unity": "6000.7",
   "keywords": [
     "RPG Framework",
     "Localisation"

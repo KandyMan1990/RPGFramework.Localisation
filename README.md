@@ -3,7 +3,7 @@
 Localisation for Unity driven from a Google spreadsheet. The editor pulls the spreadsheet's tabs and generates compact
 binary files into StreamingAssets; at run time the game loads the sheets a screen needs and looks text up by key.
 
-Requires Unity 6000.0 or newer and RPGFramework.Hashing, and is built against the .NET Standard 2.1 API compatibility
+Requires Unity 6000.7 or newer and RPGFramework.Hashing, and is built against the .NET Standard 2.1 API compatibility
 level, Unity's default.
 
 ---
